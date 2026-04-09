@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ירושלמים — ספר צילום מאת שרון גבאי | Jerusalemites</title>
+<meta name="description" content="ירושלמים — ספר צילום רחוב טרילינגואלי המתעד 15 שנות צילום בירושלים. רכשו עכשיו.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@300;400;600;700;900&family=Noto+Sans+Arabic:wght@300;400;600;700;900&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --red:#c41e2a;
+  --red-glow:#e63946;
+  --cream:#e8dcc8;
+  --cream-dim:#9a9080;
+  --bg:#080706;
+  --bg2:#0e0d0b;
+  --bg3:#161412;
+  --white:#f0ece4;
+}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--cream);
+  font-family:'Noto Sans Hebrew','Arial Hebrew',sans-serif;
+  line-height:1.8;
+  overflow-x:hidden;
+}
+body.lang-ar{
+  font-family:'Noto Sans Arabic','Arial',sans-serif;
+  direction:rtl;
+}
+body.lang-en{
+  font-family:'Source Sans 3','Libre Baskerville',sans-serif;
+  direction:ltr;
+}
+
+/* ── LANG SWITCHER ── */
+.lang-switch{
+  position:fixed;
+  top:1.2rem;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:200;
+  display:flex;
+  gap:0;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(8,7,6,0.85);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  overflow:hidden;
+}
+.lang-btn{
+  padding:0.5rem 1.2rem;
+  font-size:0.8rem;
+  font-weight:600;
+  color:var(--cream-dim);
+  background:transparent;
+  border:none;
+  cursor:pointer;
+  transition:all 0.3s;
+  font-family:inherit;
+  letter-spacing:0.05em;
+  border-left:1px solid rgba(255,255,255,0.08);
+}
+.lang-btn:first-child{border-left:none}
+.lang-btn.active{
+  color:var(--white);
+  background:var(--red);
+}
+.lang-btn:hover:not(.active){color:var(--white)}
+
+/* ── HERO ── */
+.hero{
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+  overflow:hidden;
+  background:#000;
+}
+.hero-cover{
+  width:min(420px, 70vw);
+  height:auto;
+  display:block;
+  filter:drop-shadow(0 30px 80px rgba(0,0,0,0.8));
+  animation:coverIn 1.8s ease-out;
+  position:relative;
+  z-index:2;
+}
+@keyframes coverIn{
+  0%{opacity:0;transform:scale(0.92) translateY(30px)}
+  100%{opacity:1;transform:scale(1) translateY(0)}
+}
+.hero::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:radial-gradient(ellipse 60% 50% at 50% 50%, rgba(196,30,42,0.06) 0%, transparent 70%);
+  z-index:1;
+}
+.hero-scroll{
+  position:absolute;
+  bottom:2rem;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:3;
+  width:1px;height:50px;
+  background:linear-gradient(to bottom,var(--cream-dim),transparent);
+  animation:scrollPulse 2.5s ease-in-out infinite;
+}
+@keyframes scrollPulse{
+  0%,100%{opacity:0.3}
+  50%{opacity:0.8}
+}
+
+/* ── SECTION BASE ── */
+section{padding:6rem 2rem;max-width:900px;margin:0 auto}
+.section-line{width:40px;height:2px;background:var(--red);margin-bottom:1.5rem}
+.section-label{font-size:0.7rem;letter-spacing:0.35em;color:var(--red);text-transform:uppercase;margin-bottom:0.5rem;font-weight:600}
+.section-title{font-size:clamp(1.8rem,5vw,2.8rem);font-weight:900;line-height:1.2;margin-bottom:1.5rem;color:var(--white)}
+
+/* ── ABOUT ── */
+.about p{color:var(--cream-dim);font-size:1.05rem;margin-bottom:1.2rem;font-weight:300}
+.about strong{color:var(--cream)}
+.about-dedication{
+  margin-top:2.5rem;padding:1.5rem 2rem;
+  border-right:2px solid var(--red);
+  background:rgba(196,30,42,0.04);
+  font-size:0.95rem;color:var(--cream-dim);font-style:italic;
+}
+body.lang-en .about-dedication{border-right:none;border-left:2px solid var(--red)}
+
+/* ── SPECS ── */
+.specs-section{
+  background:var(--bg2);
+  border-top:1px solid rgba(255,255,255,0.04);
+  border-bottom:1px solid rgba(255,255,255,0.04);
+}
+.specs-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:2.5rem;margin-top:2rem;
+}
+.spec-value{font-size:1.6rem;font-weight:700;color:var(--white);line-height:1.2}
+.spec-label{font-size:0.8rem;color:var(--cream-dim);margin-top:0.3rem;letter-spacing:0.05em}
+
+/* ── LANGUAGES BAR ── */
+.lang-bar{
+  display:flex;justify-content:center;gap:0;margin-top:3rem;
+  border:1px solid rgba(255,255,255,0.06);overflow:hidden;
+}
+.lang-item{flex:1;text-align:center;padding:1.5rem 1rem;border-left:1px solid rgba(255,255,255,0.06)}
+.lang-item:last-child{border-left:none}
+.lang-name{font-size:1.4rem;color:var(--white);font-weight:600}
+.lang-sub{font-size:0.7rem;color:var(--cream-dim);letter-spacing:0.15em;margin-top:0.3rem}
+
+/* ── EDITIONS ── */
+.editions-section{background:var(--bg);padding:6rem 2rem}
+.editions-inner{max-width:900px;margin:0 auto}
+.editions-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;margin-top:2.5rem}
+.edition{
+  border:1px solid rgba(255,255,255,0.06);padding:2.5rem 2rem;
+  position:relative;background:var(--bg2);transition:border-color 0.3s;
+}
+.edition:hover{border-color:rgba(255,255,255,0.12)}
+.edition-img{width:100%;height:auto;margin-bottom:1.5rem;display:block}
+.specs-img{width:100%;max-width:900px;height:auto;margin-top:2.5rem;display:block;border:1px solid rgba(255,255,255,0.06)}
+.edition.featured{border-color:var(--red);background:linear-gradient(170deg,rgba(196,30,42,0.06) 0%,var(--bg2) 40%)}
+.edition-badge{
+  position:absolute;top:-1px;right:2rem;
+  background:var(--red);color:#fff;font-size:0.65rem;font-weight:700;
+  letter-spacing:0.15em;padding:0.35rem 1rem;text-transform:uppercase;
+}
+body.lang-en .edition-badge{right:auto;left:2rem}
+.edition-type{font-size:0.7rem;letter-spacing:0.3em;color:var(--cream-dim);text-transform:uppercase;margin-bottom:0.3rem}
+.edition-name{font-size:1.8rem;font-weight:900;color:var(--white);margin-bottom:0.2rem}
+.edition-name-en{
+  font-family:'Libre Baskerville',serif;font-size:0.85rem;color:var(--cream-dim);
+  font-style:italic;margin-bottom:1.5rem;direction:ltr;text-align:right;
+}
+body.lang-en .edition-name-en{text-align:left}
+.edition-price{font-size:2.8rem;font-weight:900;color:var(--white);line-height:1;margin-bottom:0.3rem}
+.edition-price-note{font-size:0.78rem;color:var(--cream-dim);margin-bottom:1.5rem}
+.edition-line{width:100%;height:1px;background:rgba(255,255,255,0.06);margin-bottom:1.5rem}
+.edition-features{list-style:none;margin-bottom:2rem}
+.edition-features li{
+  padding:0.4rem 0;font-size:0.9rem;color:var(--cream-dim);font-weight:300;
+  position:relative;padding-right:1.2rem;
+}
+body.lang-en .edition-features li{padding-right:0;padding-left:1.2rem}
+.edition-features li::before{
+  content:'✦';position:absolute;right:0;color:var(--red);font-size:0.55rem;top:0.65rem;
+}
+body.lang-en .edition-features li::before{right:auto;left:0}
+.featured .edition-features li::before{color:var(--red-glow)}
+
+/* ── PHOTOGRAPHER ── */
+.photographer{border-top:1px solid rgba(255,255,255,0.04)}
+.photographer-inner{display:flex;gap:2.5rem;align-items:flex-start}
+.photographer-avatar{
+  width:100px;height:100px;border-radius:50%;background:var(--bg3);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:2.5rem;
+  border:1px solid rgba(255,255,255,0.06);overflow:hidden;
+}
+.photographer p{color:var(--cream-dim);font-size:0.95rem;font-weight:300;margin-bottom:0.8rem}
+.photographer-name{font-size:1.5rem;font-weight:700;color:var(--white);margin-bottom:0.1rem}
+.photographer-name-en{
+  font-family:'Libre Baskerville',serif;font-size:0.85rem;color:var(--cream-dim);
+  font-style:italic;margin-bottom:1rem;direction:ltr;text-align:right;
+}
+body.lang-en .photographer-name-en{text-align:left}
+.photographer-link{color:var(--red);text-decoration:none;font-size:0.85rem;font-weight:600}
+
+/* ── FOOTER ── */
+footer{padding:3rem 2rem;text-align:center;border-top:1px solid rgba(255,255,255,0.04)}
+.footer-title{font-size:1.8rem;font-weight:900;color:var(--white);margin-bottom:0.3rem}
+.footer-sub{
+  font-family:'Libre Baskerville',serif;font-size:0.8rem;color:var(--cream-dim);
+  font-style:italic;letter-spacing:0.1em;margin-bottom:1rem;
+}
+.footer-copy{font-size:0.7rem;color:rgba(255,255,255,0.2);letter-spacing:0.05em}
+
+/* ── WHATSAPP FLOAT ── */
+.wa-float{
+  position:fixed;bottom:1.5rem;left:1.5rem;z-index:100;
+  background:#25d366;color:#fff;width:56px;height:56px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;text-decoration:none;
+  box-shadow:0 4px 20px rgba(37,211,102,0.3);transition:transform 0.3s;
+}
+.wa-float:hover{transform:scale(1.1)}
+.wa-float svg{width:28px;height:28px;fill:#fff}
+
+/* ── LANG CONTENT ── */
+[data-lang]{display:none}
+[data-lang="he"]{display:block}
+body.lang-ar [data-lang]{display:none}
+body.lang-ar [data-lang="ar"]{display:block}
+body.lang-en [data-lang]{display:none}
+body.lang-en [data-lang="en"]{display:block}
+
+/* ── HERO CTA ── */
+.hero-cta{
+  display:inline-block;padding:0.85rem 2rem;background:var(--red);color:#fff;
+  text-decoration:none;font-size:0.9rem;font-weight:700;font-family:inherit;
+  transition:background 0.3s;
+}
+.hero-cta:hover{background:var(--red-glow)}
+
+/* ── EDITION IMG FIX ── */
+.edition-img{width:100%;height:220px;object-fit:cover;display:block}
+
+/* ── STRONGER BUTTONS ── */
+.btn-order{
+  display:block;width:100%;text-align:center;padding:1rem;
+  font-family:inherit;font-size:0.9rem;font-weight:700;text-decoration:none;
+  border:2px solid var(--cream-dim);color:var(--cream);background:transparent;
+  transition:all 0.3s;cursor:pointer;letter-spacing:0.03em;
+}
+.btn-order:hover{background:var(--cream);color:var(--bg);border-color:var(--cream)}
+.featured .btn-order{border-color:var(--red);color:#fff;background:var(--red)}
+.featured .btn-order:hover{background:var(--red-glow);border-color:var(--red-glow)}
+
+/* ── STICKY BAR ── */
+.sticky-bar{
+  position:fixed;bottom:0;left:0;right:0;z-index:150;
+  background:rgba(8,7,6,0.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-top:1px solid rgba(255,255,255,0.08);
+  padding:0.75rem 1.5rem;display:flex;align-items:center;justify-content:center;gap:1.2rem;
+  transform:translateY(100%);transition:transform 0.4s;
+}
+.sticky-bar.visible{transform:translateY(0)}
+.sticky-bar-text{font-size:0.85rem;color:var(--cream);font-weight:600}
+.sticky-bar-price{color:var(--white);font-weight:900;font-size:1.1rem}
+.sticky-bar-btn{
+  padding:0.55rem 1.6rem;background:var(--red);color:#fff;text-decoration:none;
+  font-family:inherit;font-size:0.85rem;font-weight:700;transition:background 0.3s;
+}
+.sticky-bar-btn:hover{background:var(--red-glow)}
+
+/* ── INLINE LANG SPANS ── */
+span[data-lang]{display:none}
+span[data-lang="he"]{display:inline}
+body.lang-ar span[data-lang]{display:none}
+body.lang-ar span[data-lang="ar"]{display:inline}
+body.lang-en span[data-lang]{display:none}
+body.lang-en span[data-lang="en"]{display:inline}
+
+/* ── RESPONSIVE ── */
+@media(max-width:700px){
+  .editions-grid{grid-template-columns:1fr}
+  .edition-img{height:250px}
+  .photographer-inner{flex-direction:column;align-items:center;text-align:center}
+  .photographer-name-en,.edition-name-en{text-align:center}
+  .specs-grid{grid-template-columns:1fr 1fr}
+  .lang-bar{flex-direction:column}
+  .lang-item{border-left:none;border-top:1px solid rgba(255,255,255,0.06)}
+  .lang-item:first-child{border-top:none}
+  .hero-cover{width:min(340px,85vw)}
+  .about-dedication{padding:1.2rem 1.5rem}
+  .lang-btn{padding:0.5rem 0.8rem;font-size:0.75rem}
+  .wa-float{bottom:4.5rem}
+  .sticky-bar{gap:0.8rem;padding:0.6rem 1rem}
+  .sticky-bar-text{font-size:0.75rem}
+}
+</style>
+</head>
+<body>
+
+<!-- LANG SWITCHER -->
+<div class="lang-switch">
+  <button class="lang-btn active" onclick="setLang('he')">עברית</button>
+  <button class="lang-btn" onclick="setLang('ar')">العربية</button>
+  <button class="lang-btn" onclick="setLang('en')">English</button>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <a href="https://www.sharongabay.com" style="position:relative;z-index:2;margin-bottom:2rem;opacity:0.6"><img src="https://static.wixstatic.com/media/b5a236_4cce92fc8cc54afbbb4caa557b3d0b9b~mv2.png" alt="Sharon Gabay Photography" style="height:30px;width:auto"></a>
+  <img src="https://static.wixstatic.com/media/b5a236_fb644bc65f29460db72838412e31ce92~mv2.jpg" alt="כריכת ספר ירושלמים מאת שרון גבאי — צילום רחוב בירושלים" class="hero-cover">
+  <div class="hero-caption" style="position:relative;z-index:2;text-align:center;margin-top:2rem">
+    <p data-lang="he" style="color:var(--cream-dim);font-size:0.95rem;font-weight:300;margin-bottom:1rem">ספר צילום רחוב טרילינגואלי · 15 שנה · ירושלים</p>
+    <p data-lang="ar" style="color:var(--cream-dim);font-size:0.95rem;font-weight:300;margin-bottom:1rem">كتاب تصوير شوارع ثلاثي اللغات · 15 عامًا · القدس</p>
+    <p data-lang="en" style="color:var(--cream-dim);font-size:0.95rem;font-weight:300;margin-bottom:1rem">Trilingual street photography book · 15 years · Jerusalem</p>
+    <a href="#purchase" class="hero-cta"><span data-lang="he">לרכישה ←</span><span data-lang="ar">للشراء ←</span><span data-lang="en">Buy Now →</span></a>
+  </div>
+  <div class="hero-scroll"></div>
+</section>
+
+<!-- ABOUT -->
+<section class="about" id="about">
+  <div class="section-line"></div>
+
+  <div data-lang="he">
+    <p class="section-label">על הספר</p>
+    <h2 class="section-title">עיר אחת. אלפי פנים.<br>סיפור אחד.</h2>
+    <p><strong>ירושלמים</strong> הוא ספר הצילום השישי של <strong>שרון גבאי</strong> — מסה ויזואלית וארכיון אנושי המתעד 15 שנות צילום רחוב בירושלים, בין השנים 2011–2026.</p>
+    <p>הספר חוקר את הפסיפס האנושי של ירושלים — דתות, תרבויות וזרמים — מתוך גישה הומניסטית ועמימות מכוונת. ללא פוזות, ללא סטייג׳ינג. רק הרגע האמיתי.</p>
+    <p>הטקסט מופיע בשלוש שפות — <strong>עברית, ערבית ואנגלית</strong> — כמו העיר עצמה: רב-קולית, מורכבת, ובלתי ניתנת להגדרה.</p>
+    <div class="about-dedication">הספר מוקדש לזכר <strong>ענר שפירא ז״ל</strong> — כתב ידו משולב בעיצוב הכותרת על הכריכה.</div>
+  </div>
+
+  <div data-lang="ar">
+    <p class="section-label">عن الكتاب</p>
+    <h2 class="section-title">مدينة واحدة. آلاف الوجوه.<br>قصة واحدة.</h2>
+    <p><strong>أورشليميون</strong> هو كتاب التصوير السادس لـ<strong>شارون جباي</strong> — مقالة بصرية وأرشيف إنساني يوثّق 15 عامًا من تصوير الشوارع في القدس، بين 2011 و2026.</p>
+    <p>يستكشف الكتاب الفسيفساء البشرية للقدس — أديان وثقافات وتيارات — من منظور إنساني وغموض متعمّد. بدون وضعيات، بدون إعداد مسبق. فقط اللحظة الحقيقية.</p>
+    <p>النص يظهر بثلاث لغات — <strong>العبرية والعربية والإنجليزية</strong> — مثل المدينة نفسها: متعددة الأصوات، معقدة، وغير قابلة للتعريف.</p>
+    <div class="about-dedication">الكتاب مُهدى لذكرى <strong>أنار شبيرا ז״ל</strong> — خطّ يده مدمج في تصميم العنوان على الغلاف.</div>
+  </div>
+
+  <div data-lang="en">
+    <p class="section-label">About the Book</p>
+    <h2 class="section-title">One City. Thousands of Faces.<br>One Story.</h2>
+    <p><strong>Jerusalemites</strong> is the sixth photography book by <strong>Sharon Gabay</strong> — a visual essay and human archive documenting 15 years of street photography in Jerusalem, from 2011 to 2026.</p>
+    <p>The book explores the human mosaic of Jerusalem — religions, cultures, and streams — through a humanistic approach and intentional ambiguity. No poses, no staging. Just the real moment.</p>
+    <p>The text appears in three languages — <strong>Hebrew, Arabic, and English</strong> — like the city itself: polyphonic, complex, and impossible to define.</p>
+    <div class="about-dedication">The book is dedicated to the memory of <strong>Aner Shapira z"l</strong> — his handwriting is incorporated into the title design on the cover.</div>
+  </div>
+</section>
+
+<!-- SPECS -->
+<section class="specs-section">
+  <div style="max-width:900px;margin:0 auto;padding:6rem 2rem;">
+    <div class="section-line"></div>
+
+    <div data-lang="he">
+      <p class="section-label">מפרט</p>
+      <h2 class="section-title">פרטי הספר</h2>
+    </div>
+    <div data-lang="ar">
+      <p class="section-label">المواصفات</p>
+      <h2 class="section-title">تفاصيل الكتاب</h2>
+    </div>
+    <div data-lang="en">
+      <p class="section-label">Specifications</p>
+      <h2 class="section-title">Book Details</h2>
+    </div>
+
+    <div class="specs-grid">
+      <div class="spec-item">
+        <div class="spec-value">304</div>
+        <div class="spec-label" data-lang="he">עמודים</div>
+        <div class="spec-label" data-lang="ar">صفحة</div>
+        <div class="spec-label" data-lang="en">Pages</div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-value">28×25</div>
+        <div class="spec-label" data-lang="he">גודל בס״מ</div>
+        <div class="spec-label" data-lang="ar">الحجم بالسنتيمتر</div>
+        <div class="spec-label" data-lang="en">Size in cm</div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-value">170g</div>
+        <div class="spec-label" data-lang="he">כרומו מט — סטנדרט מוזיאלי</div>
+        <div class="spec-label" data-lang="ar">ورق مطفي — معيار متحفي</div>
+        <div class="spec-label" data-lang="en">Matte chrome — museum standard</div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-value" data-lang="he">כריכה קשה</div>
+        <div class="spec-value" data-lang="ar">غلاف صلب</div>
+        <div class="spec-value" data-lang="en">Hardcover</div>
+        <div class="spec-label" data-lang="he">למינציה מט + UV סלקטיבי</div>
+        <div class="spec-label" data-lang="ar">تغليف مطفي + UV انتقائي</div>
+        <div class="spec-label" data-lang="en">Matte lamination + selective UV</div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-value">15</div>
+        <div class="spec-label" data-lang="he">שנות צילום</div>
+        <div class="spec-label" data-lang="ar">سنة تصوير</div>
+        <div class="spec-label" data-lang="en">Years of photography</div>
+      </div>
+    </div>
+
+    <img src="https://static.wixstatic.com/media/b5a236_b135c9ed5c5e462b9a55cbc8621428ee~mv2.jpg" alt="ספר ירושלמים — מידות 28×25 ס״מ, כריכה קשה" class="specs-img">
+
+    <img src="https://static.wixstatic.com/media/b5a236_e0c6d5ea3e7e4c8db55703b40a90d8d3~mv2.jpeg" alt="עמודים מתוך ספר ירושלמים — דוגמאות צילום רחוב בירושלים" class="specs-img">
+
+    <div class="lang-bar">
+      <div class="lang-item">
+        <div class="lang-name">עברית</div>
+        <div class="lang-sub">HEBREW</div>
+      </div>
+      <div class="lang-item">
+        <div class="lang-name" style="font-family:'Noto Sans Arabic',sans-serif">العربية</div>
+        <div class="lang-sub">ARABIC</div>
+      </div>
+      <div class="lang-item">
+        <div class="lang-name" style="font-family:'Libre Baskerville',serif;font-style:italic">English</div>
+        <div class="lang-sub">אנגלית</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EDITIONS -->
+<div class="editions-section" id="purchase">
+  <div class="editions-inner">
+    <div class="section-line"></div>
+
+    <div data-lang="he">
+      <p class="section-label">הזמנה</p>
+      <h2 class="section-title">בחרו את המהדורה שלכם</h2>
+    </div>
+    <div data-lang="ar">
+      <p class="section-label">الطلب</p>
+      <h2 class="section-title">اختاروا الإصدار الخاص بكم</h2>
+    </div>
+    <div data-lang="en">
+      <p class="section-label">Order</p>
+      <h2 class="section-title">Choose Your Edition</h2>
+    </div>
+
+    <div class="editions-grid">
+      <!-- STANDARD -->
+      <div class="edition">
+        <img src="https://static.wixstatic.com/media/b5a236_f18be216034d422bbffe2203831c8877~mv2.jpg" alt="ספר ירושלמים — מהדורה סטנדרטית" class="edition-img">
+        <div data-lang="he">
+          <p class="edition-type">מהדורה</p>
+          <h3 class="edition-name">סטנדרטית</h3>
+          <p class="edition-name-en">Standard Edition</p>
+        </div>
+        <div data-lang="ar">
+          <p class="edition-type">إصدار</p>
+          <h3 class="edition-name">عادي</h3>
+          <p class="edition-name-en">Standard Edition</p>
+        </div>
+        <div data-lang="en">
+          <p class="edition-type">Edition</p>
+          <h3 class="edition-name" style="font-family:'Source Sans 3',sans-serif">Standard</h3>
+        </div>
+        <div class="edition-price">₪299</div>
+        <p class="edition-price-note" data-lang="he">ללא משלוח</p>
+        <p class="edition-price-note" data-lang="ar">لا يشمل الشحن</p>
+        <p class="edition-price-note" data-lang="en">Shipping not included</p>
+        <div class="edition-line"></div>
+        <ul class="edition-features" data-lang="he">
+          <li>הספר המלא — 304 עמודים</li>
+          <li>הדפסה מוזיאלית על נייר כרומו מט</li>
+          <li>כריכה קשה + למינציה מט</li>
+          <li>טקסט בעברית, ערבית ואנגלית</li>
+        </ul>
+        <ul class="edition-features" data-lang="ar">
+          <li>الكتاب الكامل — 304 صفحة</li>
+          <li>طباعة متحفية على ورق مطفي</li>
+          <li>غلاف صلب + تغليف مطفي</li>
+          <li>نص بالعبرية والعربية والإنجليزية</li>
+        </ul>
+        <ul class="edition-features" data-lang="en">
+          <li>Full book — 304 pages</li>
+          <li>Museum-grade print on matte chrome paper</li>
+          <li>Hardcover + matte lamination</li>
+          <li>Text in Hebrew, Arabic, and English</li>
+        </ul>
+        <a href="https://www.sharongabay.com/product-page/%D7%99%D7%A8%D7%95%D7%A9%D7%9C%D7%9E%D7%99%D7%9D" class="btn-order" target="_blank" rel="noopener">
+          <span data-lang="he">לרכישה בחנות</span>
+          <span data-lang="ar">للشراء من المتجر</span>
+          <span data-lang="en">Buy Now</span>
+        </a>
+      </div>
+
+      <!-- ARTIST -->
+      <div class="edition featured">
+        <div class="edition-badge">
+          <span data-lang="he">מומלץ</span>
+          <span data-lang="ar">موصى به</span>
+          <span data-lang="en">Recommended</span>
+        </div>
+        <img src="https://static.wixstatic.com/media/b5a236_89c10c0d2b234b2cb65ff51801137aa2~mv2.jpg" alt="ספר ירושלמים עם מארז יוקרתי — מהדורת האמן" class="edition-img">
+        <div data-lang="he">
+          <p class="edition-type">מהדורה</p>
+          <h3 class="edition-name">האמן</h3>
+          <p class="edition-name-en">Artist Edition</p>
+        </div>
+        <div data-lang="ar">
+          <p class="edition-type">إصدار</p>
+          <h3 class="edition-name">الفنان</h3>
+          <p class="edition-name-en">Artist Edition</p>
+        </div>
+        <div data-lang="en">
+          <p class="edition-type">Edition</p>
+          <h3 class="edition-name" style="font-family:'Source Sans 3',sans-serif">Artist</h3>
+        </div>
+        <div class="edition-price">₪499</div>
+        <p class="edition-price-note" data-lang="he">ללא משלוח</p>
+        <p class="edition-price-note" data-lang="ar">لا يشمل الشحن</p>
+        <p class="edition-price-note" data-lang="en">Shipping not included</p>
+        <div class="edition-line"></div>
+        <ul class="edition-features" data-lang="he">
+          <li>כל הכלול במהדורה הסטנדרטית</li>
+          <li>מארז שרוול (Slipcase) מהודר</li>
+          <li>חתימה אישית של שרון גבאי</li>
+          <li>אפשרות להקדשה אישית</li>
+        </ul>
+        <ul class="edition-features" data-lang="ar">
+          <li>كل ما في الإصدار العادي</li>
+          <li>علبة فاخرة (Slipcase)</li>
+          <li>توقيع شخصي من شارون جباي</li>
+          <li>إمكانية إهداء شخصي</li>
+        </ul>
+        <ul class="edition-features" data-lang="en">
+          <li>Everything in the Standard Edition</li>
+          <li>Premium slipcase</li>
+          <li>Personal signature by Sharon Gabay</li>
+          <li>Option for personal dedication</li>
+        </ul>
+        <a href="https://www.sharongabay.com/product-page/%D7%99%D7%A8%D7%95%D7%A9%D7%9C%D7%9E%D7%99%D7%9D-%D7%9B%D7%95%D7%9C%D7%9C-%D7%9E%D7%90%D7%A8%D7%96-%D7%99%D7%95%D7%A7%D7%A8%D7%AA%D7%99-%D7%95%D7%97%D7%AA%D7%99%D7%9E%D7%94-%D7%90%D7%99%D7%A9%D7%99%D7%AA" class="btn-order" target="_blank" rel="noopener">
+          <span data-lang="he">לרכישה בחנות</span>
+          <span data-lang="ar">للشراء من المتجر</span>
+          <span data-lang="en">Buy Now</span>
+        </a>
+      </div>
+
+      <!-- PRINTS -->
+      <div class="edition">
+        <img src="https://static.wixstatic.com/media/b5a236_770efd0738dc4ed2be402d007172f4eb~mv2.jpg" alt="הדפס אמנות חתום מתוך ספר ירושלמים — שרון גבאי" class="edition-img">
+        <div data-lang="he">
+          <p class="edition-type">הדפסי אמנות</p>
+          <h3 class="edition-name">הדפסים חתומים</h3>
+          <p class="edition-name-en">Signed Fine Art Prints</p>
+        </div>
+        <div data-lang="ar">
+          <p class="edition-type">مطبوعات فنية</p>
+          <h3 class="edition-name">مطبوعات موقّعة</h3>
+          <p class="edition-name-en">Signed Fine Art Prints</p>
+        </div>
+        <div data-lang="en">
+          <p class="edition-type">Fine Art</p>
+          <h3 class="edition-name" style="font-family:'Source Sans 3',sans-serif">Signed Prints</h3>
+        </div>
+        <div class="edition-price" data-lang="he">החל מ-₪350</div>
+        <div class="edition-price" data-lang="ar">ابتداءً من ₪350</div>
+        <div class="edition-price" data-lang="en">From ₪350</div>
+        <p class="edition-price-note" data-lang="he">בהתאם לגודל ולתמונה</p>
+        <p class="edition-price-note" data-lang="ar">حسب الحجم والصورة</p>
+        <p class="edition-price-note" data-lang="en">Depending on size and image</p>
+        <div class="edition-line"></div>
+        <ul class="edition-features" data-lang="he">
+          <li>הדפסה מוזיאלית על נייר ארכיוני</li>
+          <li>גודל 50×70 ס״מ או 20×30 ס״מ</li>
+          <li>חתומה וממוספרת על ידי הצלם</li>
+          <li>תעודת אותנטיות</li>
+          <li>בחירת תמונה מתוך הספר</li>
+        </ul>
+        <ul class="edition-features" data-lang="ar">
+          <li>طباعة متحفية على ورق أرشيفي</li>
+          <li>حجم 50×70 سم أو 20×30 سم</li>
+          <li>موقّعة ومرقّمة من المصوّر</li>
+          <li>شهادة أصالة</li>
+          <li>اختيار صورة من الكتاب</li>
+        </ul>
+        <ul class="edition-features" data-lang="en">
+          <li>Museum-grade archival print</li>
+          <li>Size: 50×70 cm or 20×30 cm</li>
+          <li>Signed and numbered by the photographer</li>
+          <li>Certificate of authenticity</li>
+          <li>Choose an image from the book</li>
+        </ul>
+        <a href="https://www.sharongabay.com/shop" class="btn-order" target="_blank" rel="noopener">
+          <span data-lang="he">לרכישה בחנות</span>
+          <span data-lang="ar">للشراء من المتجر</span>
+          <span data-lang="en">Buy Now</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PHOTOGRAPHER -->
+<section class="photographer">
+  <div class="photographer-inner">
+    <div class="photographer-avatar">📸</div>
+    <div>
+      <div class="section-line"></div>
+      <div data-lang="he">
+        <p class="section-label">הצלם</p>
+        <h3 class="photographer-name">שרון גבאי</h3>
+        <p class="photographer-name-en">Sharon Gabay</p>
+        <p>צלם תדמית ואמנות עם למעלה מ-15 שנות ניסיון. מחבר שישה ספרי צילום רחוב, עם תערוכות בינלאומיות וערך בוויקיפדיה העברית. הסטודיו ממוקם בנס הרים, עם פריסה ארצית בכל ישראל.</p>
+        <p>הספר ״ירושלמים״ הוצג בפני מנהיגי עולם ובאירועים באו״ם, בקונגרס האמריקאי ובכנסת ישראל.</p>
+      </div>
+      <div data-lang="ar">
+        <p class="section-label">المصوّر</p>
+        <h3 class="photographer-name">شارون جباي</h3>
+        <p class="photographer-name-en">Sharon Gabay</p>
+        <p>مصوّر بورتريه وفنان يتمتع بخبرة تزيد عن 15 عامًا. مؤلف ستة كتب تصوير شوارع، مع معارض دولية ومقال في ويكيبيديا العبرية. الاستوديو يقع في نيس هاريم، مع تغطية على مستوى البلاد.</p>
+        <p>تم عرض كتاب "أورشليميون" أمام زعماء العالم وفي فعاليات في الأمم المتحدة والكونغرس الأمريكي والكنيست الإسرائيلي.</p>
+      </div>
+      <div data-lang="en">
+        <p class="section-label">The Photographer</p>
+        <h3 class="photographer-name" style="font-family:'Source Sans 3',sans-serif">Sharon Gabay</h3>
+        <p>Portrait and art photographer with over 15 years of experience. Author of six street photography books, with international exhibitions and a Hebrew Wikipedia entry. Studio based in Nes Harim, with nationwide coverage across Israel.</p>
+        <p>The book "Jerusalemites" has been presented to world leaders and at events at the UN, the US Congress, and the Israeli Knesset.</p>
+      </div>
+      <a href="https://www.sharongabay.com" class="photographer-link" target="_blank" rel="noopener">sharongabay.com ←</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-title">ירושלמים</div>
+  <div class="footer-sub">Jerusalemites · أورشليميون · Sharon Gabay · 2026</div>
+  <div class="footer-copy">© Sharon Gabay · sharongabay.com · כל הזכויות שמורות</div>
+</footer>
+
+<!-- STICKY BAR -->
+<div class="sticky-bar" id="stickyBar">
+  <span class="sticky-bar-text"><span data-lang="he">ירושלמים — החל מ-</span><span data-lang="ar">أورشليميون — ابتداءً من </span><span data-lang="en">Jerusalemites — From </span></span>
+  <span class="sticky-bar-price">₪299</span>
+  <a href="#purchase" class="sticky-bar-btn"><span data-lang="he">לרכישה</span><span data-lang="ar">للشراء</span><span data-lang="en">Buy Now</span></a>
+</div>
+
+<!-- WHATSAPP FLOAT -->
+<a href="https://wa.me/972542000300?text=שלום%20שרון%2C%20אשמח%20לשמוע%20עוד%20על%20ספר%20ירושלמים" class="wa-float" target="_blank" rel="noopener" aria-label="WhatsApp">
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+</a>
+
+<script>
+function setLang(lang) {
+  document.body.className = lang === 'he' ? '' : 'lang-' + lang;
+  document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
+  document.documentElement.lang = lang;
+  document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+}
+var bar=document.getElementById('stickyBar');
+var hero=document.querySelector('.hero');
+window.addEventListener('scroll',function(){
+  bar.classList.toggle('visible',window.scrollY>hero.offsetHeight*0.7);
+});
+</script>
+
+</body>
+</html>
