@@ -1,0 +1,17 @@
+{
+  "name": "sharon-photography-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "בוט וואטסאפ לעסק צילום התדמית והפורטרט של שרון גבאי — שלב 'מוח' + מצב בדיקה מקומי בטרמינל",
+  "main": "src/brain.js",
+  "scripts": {
+    "bot": "node src/cli.js",
+    "chat": "node src/cli.js",
+    "demo": "node src/demo.js",
+    "test": "node test/run.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}
