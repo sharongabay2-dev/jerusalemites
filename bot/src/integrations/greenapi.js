@@ -70,6 +70,24 @@ async function sendMessage(chatId, message) {
   return callApi('sendMessage', { body: { chatId, message } });
 }
 
+/**
+ * שליחת הודעת כפתורים אינטראקטיביים (עד 3 כפתורים).
+ * @param {string} chatId
+ * @param {string} body טקסט השאלה (כולל אפשרויות ממוספרות כגיבוי).
+ * @param {Array<{id:string,title:string}>} buttons
+ */
+async function sendButtons(chatId, body, buttons) {
+  const payload = {
+    chatId,
+    body,
+    buttons: buttons.slice(0, 3).map((b) => ({
+      buttonId: String(b.id),
+      buttonText: String(b.title).slice(0, 25),
+    })),
+  };
+  return callApi('sendInteractiveButtonsReply', { body: payload });
+}
+
 // ── הגדרות החיבור (כולל הפעלת התראות יוצאות + webhook) ──
 async function getSettings() {
   return callApi('getSettings', { httpMethod: 'GET' });
@@ -93,12 +111,45 @@ async function deleteNotification(receiptId) {
 }
 
 // ── פירוק התראה נכנסת (webhook או polling) לאירוע אחיד ──
+let _loggedInteractive = false;
+
+// סורק במבנה התשובה אחרי מזהה הכפתור שנבחר (מכסה כמה צורות אפשריות של Green API).
+function findSelectedButtonId(messageData) {
+  const candidates = [
+    messageData.buttonsResponseMessage,
+    messageData.templateButtonReplyMessage,
+    messageData.interactiveButtonsReply,
+    messageData.interactiveButtons,
+    messageData.listResponseMessage,
+  ];
+  for (const c of candidates) {
+    if (!c || typeof c !== 'object') continue;
+    const id =
+      c.selectedButtonId || c.selectedId || c.buttonId || c.selectedRowId || c.id;
+    if (id != null && String(id).trim() !== '') return String(id).trim();
+  }
+  return null;
+}
+
 function extractText(messageData) {
   if (!messageData) return '';
   const td = messageData.textMessageData;
   if (td && typeof td.textMessage === 'string') return td.textMessage;
   const ext = messageData.extendedTextMessageData;
   if (ext && typeof ext.text === 'string') return ext.text;
+
+  // תשובת כפתור/רשימה אינטראקטיבית — מחזירים את מזהה הכפתור (כמו הקלדת אותו מספר).
+  const buttonId = findSelectedButtonId(messageData);
+  if (buttonId) return buttonId;
+
+  // פעם אחת: רישום מבנה אינטראקטיבי לא מזוהה ללוג, לאיתור הפורמט המדויק.
+  const tm = messageData.typeMessage || '';
+  if (!_loggedInteractive && /interactive|button|list|template/i.test(tm)) {
+    _loggedInteractive = true;
+    try {
+      console.log('[greenapi] מבנה הודעה אינטראקטיבית לבדיקה:', JSON.stringify(messageData));
+    } catch (_) {}
+  }
   return '';
 }
 
@@ -141,6 +192,7 @@ module.exports = {
   hasToken: () => !!API_TOKEN,
   matchesToken: (k) => !!API_TOKEN && k === API_TOKEN,
   sendMessage,
+  sendButtons,
   getSettings,
   setSettings,
   receiveNotification,

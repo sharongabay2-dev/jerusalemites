@@ -21,6 +21,11 @@ function fakeGreen() {
     async sendMessage(chatId, message) {
       console.log(`\n🤖 בוט → ${chatId}:\n${message}`);
     },
+    async sendButtons(chatId, body, buttons) {
+      console.log(
+        `\n🤖 בוט → ${chatId}:\n${body}\n   [כפתורים: ${buttons.map((b) => b.title).join(' | ')}]`
+      );
+    },
   };
 }
 

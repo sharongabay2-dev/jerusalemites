@@ -15,7 +15,12 @@ const { notifySharon } = require('./integrations/notify');
 
 function printBot(lines) {
   for (const line of lines) {
-    console.log('\n🤖 בוט:\n' + line + '\n');
+    const text = typeof line === 'string' ? line : line.text;
+    const btn =
+      line && line.buttons
+        ? '\n   [כפתורים: ' + line.buttons.map((b) => b.title).join(' | ') + ']'
+        : '';
+    console.log('\n🤖 בוט:\n' + text + btn + '\n');
   }
 }
 

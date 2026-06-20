@@ -35,10 +35,13 @@ function newBrain(leads) {
   const notify = leads ? (l) => leads.push(JSON.parse(JSON.stringify(l))) : () => {};
   return new Brain({ calendar: new MockCalendar(BASE), notify });
 }
+function toText(reply) {
+  return reply.map((r) => (typeof r === 'string' ? r : r.text)).join('\n');
+}
 async function play(brain, inputs) {
   let last = brain.start();
   for (const i of inputs) last = await brain.receive(i);
-  return last.join('\n');
+  return toText(last);
 }
 
 console.log('בדיקות:');
@@ -146,7 +149,7 @@ test('מספר עובדים · 11–20 -> תמחור 550 + 1,500 ויום מלא
   const leads = [];
   const brain = newBrain(leads);
   const reply = await play(brain, [
-    '2', '3', '1', 'מיכל', '0521119999', 'm@x.com', 'ויצמן 5, רעננה',
+    '2', '2', '1', '1', 'מיכל', '0521119999', 'm@x.com', 'ויצמן 5, רעננה',
   ]);
   const lead = leads[0];
   assert.strictEqual(lead.audience, 'team');
@@ -160,7 +163,7 @@ test('מספר עובדים · 11–20 -> תמחור 550 + 1,500 ויום מלא
 test('מספר עובדים · 40+ -> הצעה אישית, ללא קביעה', async () => {
   const leads = [];
   const brain = newBrain(leads);
-  const reply = await play(brain, ['2', '5', 'רונית', '0539998888', 'r@x.com']);
+  const reply = await play(brain, ['2', '3', 'רונית', '0539998888', 'r@x.com']);
   assert.ok(brain.isDone());
   const lead = leads[0];
   assert.strictEqual(lead.team.perPerson, null);
@@ -182,7 +185,10 @@ test('בקשה לדבר עם שרון -> איסוף פרטים, ללא קביע�
 // ── הפעלה ידנית (Dispatcher) ──
 function makeDispatcher(autoReplyAll = false, store) {
   const sent = [];
-  const greenapi = { sendMessage: async (chatId, message) => sent.push({ chatId, message }) };
+  const greenapi = {
+    sendMessage: async (chatId, message) => sent.push({ chatId, message }),
+    sendButtons: async (chatId, message, buttons) => sent.push({ chatId, message, buttons }),
+  };
   const makeBrain = () => new Brain({ calendar: new MockCalendar(BASE), notify: () => {} });
   const d = new Dispatcher({
     greenapi, makeBrain, store, autoReplyAll, logger: { log() {}, error() {} },
@@ -199,11 +205,21 @@ test('ברירת מחדל: הבוט שותק להודעת לקוח', async () =>
   await d.onEvent(inc('שלום'));
   assert.strictEqual(sent.length, 0);
 });
-test('"בוט" מהמכשיר של שרון מפעיל ומברך', async () => {
+test('"בוט" מהמכשיר של שרון מפעיל ומברך עם כפתורים', async () => {
   const { d, sent } = makeDispatcher(false);
   await d.onEvent(out('בוט'));
   assert.strictEqual(sent.length, 1);
-  assert.ok(/ברוכים הבאים/.test(sent[0].message));
+  assert.ok(/ברוכים הבאים/.test(sent[0].message), 'גוף הטקסט (גיבוי)');
+  assert.ok(Array.isArray(sent[0].buttons) && sent[0].buttons.length === 2, 'נשלחו 2 כפתורים');
+  assert.strictEqual(sent[0].buttons[0].id, '1');
+});
+
+test('לחיצת כפתור (buttonId) מתפקדת כמו הקלדת המספר', async () => {
+  const { d, sent } = makeDispatcher(false);
+  await d.onEvent(out('בוט'));
+  await d.onEvent(inc('2')); // buttonId "2" = מספר עובדים -> שאלת כמות
+  assert.ok(/כמה עובדים/.test(sent[sent.length - 1].message));
+  assert.ok(Array.isArray(sent[sent.length - 1].buttons), 'גם השאלה הבאה בכפתורים');
 });
 test('הודעת לקוח "בוט" אינה מפעילה', async () => {
   const { d, sent } = makeDispatcher(false);
@@ -223,6 +239,22 @@ test('לאחר הפעלה הבוט מנהל את השיחה', async () => {
   await d.onEvent(inc('1')); // אדם אחד -> שאלת מיקום
   assert.ok(/היכן/.test(sent[sent.length - 1].message));
 });
+test('normalize מזהה לחיצת כפתור ומחזיר את ה-buttonId', () => {
+  const greenapiMod = require('../src/integrations/greenapi');
+  const body = {
+    typeWebhook: 'incomingMessageReceived',
+    senderData: { chatId: CHAT },
+    messageData: {
+      typeMessage: 'buttonsResponseMessage',
+      buttonsResponseMessage: { selectedButtonId: '2', selectedButtonText: 'מספר עובדים' },
+    },
+  };
+  const evt = greenapiMod.normalize(body);
+  assert.strictEqual(evt.kind, 'message');
+  assert.strictEqual(evt.direction, 'incoming');
+  assert.strictEqual(evt.text, '2', 'מחזיר את buttonId כטקסט');
+});
+
 test('"סיום" מחזיר שליטה לשרון', async () => {
   const { d, sent } = makeDispatcher(false);
   await d.onEvent(out('בוט'));

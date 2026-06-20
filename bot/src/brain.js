@@ -119,6 +119,7 @@ class Brain {
       case 'location': return this._handleLocation(text);
       case 'package': return this._handlePackage(text);
       case 'employees': return this._handleEmployees(text);
+      case 'employees_sub': return this._handleEmployeesSub(text);
       case 'schedule': return this._handleSchedule(text);
       case 'contact': return this._handleContact(text);
       default: return [messages.notUnderstood()];
@@ -137,7 +138,7 @@ class Brain {
       this.lead.audience = 'team';
       this.lead.location = 'onsite'; // צוות תמיד בבית העסק
       this.step = 'employees';
-      return [messages.askEmployees()];
+      return [messages.askEmployeesGroup()];
     }
     return [messages.notUnderstood()];
   }
@@ -162,20 +163,39 @@ class Brain {
     return this._proposeSchedule();
   }
 
-  // ── כמות עובדים (צוות) ──
+  // ── כמות עובדים (צוות) — שלב א': קבוצה ──
   async _handleEmployees(text) {
     const n = pickNumber(text);
-    const map = { 1: 'b5', 2: 'b10', 3: 'b20', 4: 'b40', 5: 'b41' };
-    const bracket = getTeamBracket(map[n]);
-    if (!bracket) return [messages.notUnderstood()];
-    this.lead.team = bracket;
-
-    if (bracket.perPerson === null) {
+    if (n === 1) {
+      this.step = 'employees_sub';
+      this.lead._empGroup = 'small'; // עד 10
+      return [messages.askEmployeesSubSmall()];
+    }
+    if (n === 2) {
+      this.step = 'employees_sub';
+      this.lead._empGroup = 'mid'; // 11–40
+      return [messages.askEmployeesSubMid()];
+    }
+    if (n === 3) {
       // יותר מ-40 — הצעה אישית, ללא תמחור/קביעה אוטומטיים.
+      this.lead.team = getTeamBracket('b41');
       this.lead.outcome = 'צוות 40+ — מתואמת הצעה אישית של שרון';
       return this._startContact(['name', 'phone', 'email'], 'teamCustom', [messages.teamCustom()]);
     }
+    return [messages.notUnderstood()];
+  }
 
+  // ── כמות עובדים — שלב ב': פירוט המדרגה ──
+  async _handleEmployeesSub(text) {
+    const n = pickNumber(text);
+    const groups = {
+      small: { 1: 'b5', 2: 'b10' },
+      mid: { 1: 'b20', 2: 'b40' },
+    };
+    const id = (groups[this.lead._empGroup] || {})[n];
+    const bracket = getTeamBracket(id);
+    if (!bracket) return [messages.notUnderstood()];
+    this.lead.team = bracket;
     const sched = await this._proposeSchedule();
     return [messages.teamPriced(bracket), ...sched];
   }

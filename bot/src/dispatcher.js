@@ -96,10 +96,24 @@ class Dispatcher {
 
   async _send(chatId, lines) {
     for (const line of lines || []) {
+      // תשובה יכולה להיות מחרוזת רגילה או הודעת כפתורים { text, buttons }.
+      const isButtons = line && typeof line === 'object' && Array.isArray(line.buttons);
+      const text = isButtons ? line.text : line;
       try {
-        await this.greenapi.sendMessage(chatId, line);
+        if (isButtons && typeof this.greenapi.sendButtons === 'function') {
+          await this.greenapi.sendButtons(chatId, text, line.buttons);
+        } else {
+          // גיבוי: אם כפתורים לא נתמכים — שולחים את גוף הטקסט הממוספר.
+          await this.greenapi.sendMessage(chatId, text);
+        }
       } catch (e) {
         this.logger.error(`[dispatcher] שליחה נכשלה ל-${chatId}: ${e.message}`);
+        // גיבוי נוסף: אם שליחת הכפתורים נכשלה, ננסה טקסט רגיל.
+        if (isButtons) {
+          try {
+            await this.greenapi.sendMessage(chatId, text);
+          } catch (_) {}
+        }
       }
     }
   }

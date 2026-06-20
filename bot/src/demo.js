@@ -18,7 +18,12 @@ async function runScenario(title, userInputs) {
   console.log('##################################################');
 
   const brain = new Brain({ calendar: new MockCalendar(BASE_DATE), notify: notifySharon });
-  const show = (lines) => lines.forEach((l) => console.log('\n🤖 ' + l + '\n'));
+  const show = (lines) =>
+    lines.forEach((l) => {
+      const text = typeof l === 'string' ? l : l.text;
+      const btn = l && l.buttons ? '\n   [כפתורים: ' + l.buttons.map((b) => b.title).join(' | ') + ']' : '';
+      console.log('\n🤖 ' + text + btn + '\n');
+    });
 
   show(brain.start());
   for (const input of userInputs) {
@@ -51,10 +56,11 @@ async function runScenario(title, userInputs) {
     'הרצל 10, תל אביב',
   ]);
 
-  // 3) מספר עובדים · 11–20 · תמחור + יום מלא
+  // 3) מספר עובדים · 11–20 · תמחור + יום מלא (שני שלבי כפתורים)
   await runScenario('מספר עובדים · 11–20', [
     '2', // מספר עובדים
-    '3', // 11–20 -> 550 לעובד
+    '2', // קבוצה: 11–40
+    '1', // 11–20 -> 550 לעובד
     '1', // יום פנוי
     'מיכל כהן',
     '0521119999',
@@ -65,7 +71,7 @@ async function runScenario(title, userInputs) {
   // 4) מספר עובדים · יותר מ-40 · הצעה אישית
   await runScenario('מספר עובדים · 40+ · הצעה אישית', [
     '2', // מספר עובדים
-    '5', // יותר מ-40
+    '3', // קבוצה: יותר מ-40
     'רונית מנהלת',
     '0539998888',
     'ronit@example.com',

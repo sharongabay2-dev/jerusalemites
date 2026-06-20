@@ -9,9 +9,14 @@
 const { PACKAGES, TEAM, formatPrice } = require('./config/pricing');
 const business = require('./config/business');
 
+// בונה הודעת כפתורים: גוף טקסט (כולל אפשרויות ממוספרות כגיבוי) + כפתורים.
+function buttonsMsg(text, buttons) {
+  return { text, buttons };
+}
+
 const messages = {
   greeting() {
-    return (
+    const text =
       'שלום, וברוכים הבאים לסטודיו של שרון גבאי. אני העוזר הדיגיטלי.\n' +
       'בכל שלב תוכלו לבקש לדבר עם שרון ישירות.\n' +
       'מוזמנים להתרשם מעבודות ומחוות דעת של לקוחות:\n' +
@@ -19,41 +24,64 @@ const messages = {
       `ביקורות › ${business.reviewsUrl}\n\n` +
       'איזה צילום תרצו?\n' +
       '1 · צילום לאדם אחד\n' +
-      '2 · צילום למספר עובדים'
-    );
+      '2 · צילום למספר עובדים';
+    return buttonsMsg(text, [
+      { id: '1', title: 'צילום לאדם אחד' },
+      { id: '2', title: 'צילום למספר עובדים' },
+    ]);
   },
 
   askLocation() {
-    return (
+    const text =
       'היכן נוח לכם לצלם?\n' +
       `1 · בסטודיו של שרון, ב${business.studioShortLocation}\n` +
-      '2 · בבית העסק — שרון מגיע ומקים סטודיו מלא אצלכם (תוצאה זהה; התעריף גבוה יותר)'
-    );
+      '2 · בבית העסק — שרון מגיע ומקים סטודיו מלא אצלכם (תוצאה זהה; התעריף גבוה יותר)';
+    return buttonsMsg(text, [
+      { id: '1', title: `בסטודיו ב${business.studioShortLocation}` },
+      { id: '2', title: 'אצלכם בבית העסק' },
+    ]);
   },
 
   presentPackages(location) {
     const loc = PACKAGES[location];
     const t = loc.tiers;
     const includes = loc.includes.join(', ');
-    return (
+    const text =
       `החבילות שלנו ${loc.label}:\n` +
       `1 · בסיס — ${formatPrice(t.base.price)} (${t.base.photos} תמונות, ${t.base.sets} סטים)\n` +
       `2 · סטנדרט — ${formatPrice(t.standard.price)} (${t.standard.photos} תמונות, ${t.standard.sets} סטים) — מומלצת\n` +
       `3 · פרימיום — ${formatPrice(t.premium.price)} (${t.premium.photos} תמונות, ${t.premium.sets} סטים)\n` +
       `כולל: ${includes}.\n\n` +
-      'איזו חבילה מתאימה לכם? (1 / 2 / 3)'
-    );
+      'איזו חבילה מתאימה לכם? (1 / 2 / 3)';
+    return buttonsMsg(text, [
+      { id: '1', title: `בסיס · ${formatPrice(t.base.price)}` },
+      { id: '2', title: `סטנדרט · ${formatPrice(t.standard.price)}` },
+      { id: '3', title: `פרימיום · ${formatPrice(t.premium.price)}` },
+    ]);
   },
 
-  askEmployees() {
-    return (
-      'כמה עובדים?\n' +
-      '1 · עד 5\n' +
-      '2 · 6–10\n' +
-      '3 · 11–20\n' +
-      '4 · 21–40\n' +
-      '5 · יותר מ-40'
-    );
+  // שאלת מספר העובדים בשני שלבי כפתורים (עד 3 כל אחד) כדי שלא יצטרכו להקליד.
+  askEmployeesGroup() {
+    const text = 'כמה עובדים?\n1 · עד 10\n2 · 11–40\n3 · יותר מ-40';
+    return buttonsMsg(text, [
+      { id: '1', title: 'עד 10 עובדים' },
+      { id: '2', title: '11–40 עובדים' },
+      { id: '3', title: 'יותר מ-40' },
+    ]);
+  },
+  askEmployeesSubSmall() {
+    const text = 'כמה עובדים?\n1 · עד 5\n2 · 6–10';
+    return buttonsMsg(text, [
+      { id: '1', title: 'עד 5 עובדים' },
+      { id: '2', title: '6–10 עובדים' },
+    ]);
+  },
+  askEmployeesSubMid() {
+    const text = 'כמה עובדים?\n1 · 11–20\n2 · 21–40';
+    return buttonsMsg(text, [
+      { id: '1', title: '11–20 עובדים' },
+      { id: '2', title: '21–40 עובדים' },
+    ]);
   },
 
   teamPriced(bracket) {
