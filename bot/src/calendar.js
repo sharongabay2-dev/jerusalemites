@@ -104,17 +104,18 @@ class MockCalendar {
     return true;
   }
 
-  /** כל המשבצות הפנויות ביום מסוים לצילום סטודיו בחבילה נתונה. */
+  /**
+   * משבצות פנויות ביום מסוים לצילום סטודיו בחבילה נתונה.
+   * מוחזרות משבצות *נפרדות שאינן חופפות* (אריזה חמדנית עם רווח חובה),
+   * כדי שהאפשרויות המוצגות ללקוח יהיו ברורות ולא מבלבלות.
+   */
   freeStudioSlots(date, tierId) {
     if (!isWorkingDay(date) || this.isFullyBlocked(date)) return [];
     const duration = STUDIO_DURATION_MIN[tierId];
     if (!duration) return [];
     const slots = [];
-    for (
-      let start = WINDOW_START_MIN;
-      start + duration <= WINDOW_END_MIN;
-      start += SLOT_STEP_MIN
-    ) {
+    let start = WINDOW_START_MIN;
+    while (start + duration <= WINDOW_END_MIN) {
       const end = start + duration;
       if (this._isSlotFree(date, start, end)) {
         slots.push({
@@ -126,6 +127,10 @@ class MockCalendar {
           endLabel: minutesToHHMM(end),
           dateLabel: formatDateHe(date),
         });
+        // המשבצת הבאה מתחילה רק אחרי המשבצת שנבחרה + רווח — בלי חפיפה.
+        start = end + GAP_MIN;
+      } else {
+        start += SLOT_STEP_MIN;
       }
     }
     return slots;
