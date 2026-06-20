@@ -19,10 +19,9 @@ const {
 
 const BASE = new Date('2026-06-21T00:00:00'); // ראשון
 let passed = 0;
+const _tests = [];
 function test(name, fn) {
-  fn();
-  passed++;
-  console.log('  ✓ ' + name);
+  _tests.push({ name, fn });
 }
 
 // מאסף את ההתראות לשרון במקום להדפיס.
@@ -154,4 +153,90 @@ test('בקשת מעבר לשרון עוברת ל-handoff', () => {
   assert.ok(/שיחה אישית/.test(leads[0].outcome));
 });
 
-console.log(`\n✅ כל ${passed} הבדיקות עברו.`);
+// ── הפעלה ידנית (Dispatcher) ──
+const { Dispatcher } = require('../src/dispatcher');
+const { notifySharon } = require('../src/integrations/notify');
+
+function makeDispatcher(autoReplyAll = false) {
+  const sent = [];
+  const greenapi = { sendMessage: async (chatId, message) => sent.push({ chatId, message }) };
+  const makeBrain = () => new Brain({ calendar: new MockCalendar(BASE), notify: () => {} });
+  const d = new Dispatcher({
+    greenapi,
+    makeBrain,
+    autoReplyAll,
+    logger: { log: () => {}, error: () => {} },
+  });
+  return { d, sent };
+}
+const CHAT = '972500000001@c.us';
+const inc = (text) => ({ kind: 'message', direction: 'incoming', viaApi: false, chatId: CHAT, text });
+const out = (text) => ({ kind: 'message', direction: 'outgoing', viaApi: false, chatId: CHAT, text });
+const botApi = (text) => ({ kind: 'message', direction: 'outgoing', viaApi: true, chatId: CHAT, text });
+
+test('כברירת מחדל הבוט שותק להודעת לקוח', async () => {
+  const { d, sent } = makeDispatcher(false);
+  await d.onEvent(inc('שלום'));
+  assert.strictEqual(sent.length, 0, 'אין תגובה לפני הפעלה');
+});
+
+test('"בוט" מהמכשיר של שרון מפעיל ומברך', async () => {
+  const { d, sent } = makeDispatcher(false);
+  await d.onEvent(out('בוט'));
+  assert.strictEqual(sent.length, 1, 'נשלחה ברכה');
+  assert.ok(/ברוכים הבאים/.test(sent[0].message), 'תוכן הברכה');
+});
+
+test('הודעה מלקוח שמכילה "בוט" אינה מפעילה (רק הודעה יוצאת מפעילה)', async () => {
+  const { d, sent } = makeDispatcher(false);
+  await d.onEvent(inc('בוט'));
+  assert.strictEqual(sent.length, 0, 'הודעת לקוח לא מפעילה');
+});
+
+test('הודעות שהבוט עצמו שלח מסוננות (אין לולאה)', async () => {
+  const { d, sent } = makeDispatcher(false);
+  await d.onEvent(out('בוט'));
+  const before = sent.length;
+  await d.onEvent(botApi('שלום, וברוכים הבאים...'));
+  assert.strictEqual(sent.length, before, 'הודעת API של הבוט לא מטופלת');
+});
+
+test('לאחר הפעלה הבוט מנהל את השיחה', async () => {
+  const { d, sent } = makeDispatcher(false);
+  await d.onEvent(out('בוט')); // ברכה
+  await d.onEvent(inc('1')); // פורטרט -> שאלת "מתי"
+  assert.ok(sent.length >= 2, 'הבוט הגיב להודעת הלקוח');
+  assert.ok(/מתי/.test(sent[sent.length - 1].message), 'המשיך בסינון');
+});
+
+test('"סיום" מחזיר שליטה לשרון והבוט שותק שוב', async () => {
+  const { d, sent } = makeDispatcher(false);
+  await d.onEvent(out('בוט'));
+  await d.onEvent(out('סיום'));
+  const before = sent.length;
+  await d.onEvent(inc('1'));
+  assert.strictEqual(sent.length, before, 'אין תגובה אחרי סיום');
+});
+
+test('מתג AUTO_REPLY_ALL גורם לבוט לענות לכולם', async () => {
+  const { d, sent } = makeDispatcher(true);
+  await d.onEvent(inc('שלום')); // ללא "בוט" -> מברך מיד
+  assert.ok(sent.length >= 1, 'ענה בלי הפעלה ידנית');
+  assert.ok(/ברוכים הבאים/.test(sent[0].message));
+});
+
+(async () => {
+  for (const t of _tests) {
+    try {
+      await t.fn();
+      passed++;
+      console.log('  ✓ ' + t.name);
+    } catch (e) {
+      console.error('  ✗ ' + t.name + '\n    ' + e.message);
+      process.exitCode = 1;
+      return;
+    }
+  }
+  console.log(`\n✅ כל ${passed} הבדיקות עברו.`);
+})();
+
