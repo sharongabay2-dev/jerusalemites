@@ -13,22 +13,25 @@
  *    ולא של הודעת לקוח, ולא של הודעות שהבוט עצמו שלח (outgoingAPIMessageReceived).
  *  - מתג BOT_AUTO_REPLY_ALL=true הופך את הבוט לאוטומטי שעונה לכולם.
  *
- * שמירת מצב: בזיכרון התהליך (Map לפי chatId). מתאים לעובד הרץ 24/7.
- * אם המצב נמחק (אתחול מחדש) — ברירת המחדל בטוחה: הבוט שב לשקט עד
- * שמפעילים אותו שוב.
+ * שמירת מצב: דרך `store` (אחסון מתמיד כמו Redis, עם נפילה לזיכרון).
+ * כך שיחה פעילה לא נשכחת גם אחרי הפסקה ארוכה או אתחול מופע serverless.
+ * אם אין מצב שמור (או שהאחסון לא זמין) — ברירת המחדל בטוחה: הבוט שותק
+ * עד שמפעילים אותו שוב.
  */
 
 const { TRIGGER_WORD, STOP_WORD, AUTO_REPLY_ALL } = require('./config/bot');
+const { MemoryStore } = require('./store');
 
 class Dispatcher {
   /**
    * @param {object} deps
    * @param {object} deps.greenapi   ממשק שליחה (חייב sendMessage(chatId, text)).
    * @param {Function} deps.makeBrain מפעל שמחזיר מופע Brain חדש לכל שיחה.
+   * @param {object} [deps.store]     אחסון מצב (get/set/del). ברירת מחדל: זיכרון.
    * @param {object} [deps.logger]
    * @param {boolean} [deps.autoReplyAll] עקיפת המתג (לבדיקות).
    */
-  constructor({ greenapi, makeBrain, logger = console, autoReplyAll } = {}) {
+  constructor({ greenapi, makeBrain, store, logger = console, autoReplyAll } = {}) {
     if (!greenapi || typeof greenapi.sendMessage !== 'function') {
       throw new Error('Dispatcher דורש greenapi עם sendMessage');
     }
@@ -37,9 +40,9 @@ class Dispatcher {
     }
     this.greenapi = greenapi;
     this.makeBrain = makeBrain;
+    this.store = store || new MemoryStore();
     this.logger = logger;
     this.autoReplyAll = autoReplyAll === undefined ? AUTO_REPLY_ALL : autoReplyAll;
-    this.sessions = new Map(); // chatId -> { active, brain }
   }
 
   /** נקודת הכניסה: מקבלת אירוע אחיד מ-greenapi.normalize(). */
@@ -57,39 +60,38 @@ class Dispatcher {
     }
 
     // הודעה נכנסת מלקוח.
-    if (!this._isActive(evt.chatId)) return; // שער ההפעלה הידנית.
-    return this._respond(evt.chatId, text);
-  }
-
-  _isActive(chatId) {
-    if (this.autoReplyAll) return true;
-    const s = this.sessions.get(chatId);
-    return !!(s && s.active);
+    const session = await this.store.get(evt.chatId);
+    const active = this.autoReplyAll || !!(session && session.active);
+    if (!active) return; // שער ההפעלה הידנית.
+    return this._respond(evt.chatId, text, session);
   }
 
   async _activate(chatId) {
     const brain = this.makeBrain();
-    this.sessions.set(chatId, { active: true, brain });
+    const replies = brain.start();
+    await this.store.set(chatId, { active: true, brain: brain.toState() });
     this.logger.log(`[dispatcher] הופעל ידנית בשיחה ${chatId}`);
-    await this._send(chatId, brain.start());
+    await this._send(chatId, replies);
   }
 
-  _deactivate(chatId) {
-    this.sessions.delete(chatId);
+  async _deactivate(chatId) {
+    await this.store.del(chatId);
     this.logger.log(`[dispatcher] הוחזרה שליטה לשרון בשיחה ${chatId}`);
   }
 
-  async _respond(chatId, text) {
-    let s = this.sessions.get(chatId);
-    // במצב אוטומטי לכולם — יוצרים שיחה ומברכים בהודעה הראשונה.
-    if (!s) {
-      const brain = this.makeBrain();
-      s = { active: true, brain };
-      this.sessions.set(chatId, s);
-      return this._send(chatId, brain.start());
+  async _respond(chatId, text, session) {
+    // שיחה קיימת — משחזרים את המוח מהמצב השמור וממשיכים.
+    if (session && session.brain) {
+      const brain = this.makeBrain().loadState(session.brain);
+      const replies = brain.receive(text);
+      await this.store.set(chatId, { active: true, brain: brain.toState() });
+      return this._send(chatId, replies);
     }
-    const replies = s.brain.receive(text);
-    await this._send(chatId, replies);
+    // מצב אוטומטי לכולם, הודעה ראשונה — מברכים ופותחים שיחה.
+    const brain = this.makeBrain();
+    const replies = brain.start();
+    await this.store.set(chatId, { active: true, brain: brain.toState() });
+    return this._send(chatId, replies);
   }
 
   async _send(chatId, lines) {

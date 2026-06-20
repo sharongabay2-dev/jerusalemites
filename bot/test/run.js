@@ -225,6 +225,48 @@ test('מתג AUTO_REPLY_ALL גורם לבוט לענות לכולם', async () =
   assert.ok(/ברוכים הבאים/.test(sent[0].message));
 });
 
+// ── אחסון מתמיד: שיחה פעילה שורדת אתחול מופע serverless ──
+const { MemoryStore } = require('../src/store');
+
+test('שיחה פעילה נשמרת באחסון ושורדת "אתחול" (Dispatcher חדש, אותו store)', async () => {
+  const store = new MemoryStore(); // משותף בין שני המופעים
+  const makeBrain = () => new Brain({ calendar: new MockCalendar(BASE), notify: () => {} });
+  const newDispatcher = () => {
+    const sent = [];
+    const greenapi = { sendMessage: async (c, m) => sent.push({ chatId: c, message: m }) };
+    const d = new Dispatcher({ greenapi, makeBrain, store, logger: { log() {}, error() {} } });
+    return { d, sent };
+  };
+
+  // מופע 1: שרון מפעיל, הלקוח עונה שלב אחד.
+  const a = newDispatcher();
+  await a.d.onEvent(out('בוט'));
+  await a.d.onEvent(inc('1')); // פורטרט -> "מתי"
+
+  // מופע 2 (כאילו ה-serverless התאתחל) — אותו store בלבד.
+  const b = newDispatcher();
+  await b.d.onEvent(inc('בשבוע הבא')); // צריך להמשיך לשאלת "איפה"
+  assert.ok(b.sent.length >= 1, 'הבוט המשיך אחרי אתחול');
+  assert.ok(/היכן|איפה/.test(b.sent[b.sent.length - 1].message), 'המשיך לשלב הנכון (לא שכח)');
+});
+
+test('שיחה מלאה עוברת round-trip של סריאליזציה עד קביעת מועד', async () => {
+  const store = new MemoryStore();
+  const makeBrain = () => new Brain({ calendar: new MockCalendar(BASE), notify: () => {} });
+  const sent = [];
+  const greenapi = { sendMessage: async (c, m) => sent.push({ chatId: c, message: m }) };
+  // Dispatcher חדש בכל הודעה — מאלץ שמירה/שחזור בכל צעד.
+  const fresh = () => new Dispatcher({ greenapi, makeBrain, store, logger: { log() {}, error() {} } });
+
+  await fresh().onEvent(out('בוט'));
+  for (const msg of ['1', 'בשבועיים הקרובים', '1', '2', '1', 'דנה כהן', '0521234567']) {
+    await fresh().onEvent(inc(msg));
+  }
+  const last = sent[sent.length - 1].message;
+  assert.ok(/המועד נקבע/.test(last), 'הגיע לאישור קביעת מועד');
+  assert.ok(/1,850/.test(last), 'המחיר הנכון באישור (סטנדרט סטודיו)');
+});
+
 (async () => {
   for (const t of _tests) {
     try {

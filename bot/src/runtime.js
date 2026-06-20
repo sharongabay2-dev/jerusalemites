@@ -13,18 +13,21 @@ const { Dispatcher } = require('./dispatcher');
 const { Brain } = require('./brain');
 const { MockCalendar } = require('./calendar');
 const { notifySharon } = require('./integrations/notify');
+const { createStore } = require('./store');
 
 function makeBrain() {
   const calendar = new MockCalendar(new Date());
   return new Brain({ calendar, notify: notifySharon });
 }
 
+const store = createStore();
+
 let dispatcher = null;
 function getDispatcher() {
   if (!dispatcher) {
-    dispatcher = new Dispatcher({ greenapi, makeBrain });
+    dispatcher = new Dispatcher({ greenapi, makeBrain, store });
   }
   return dispatcher;
 }
 
-module.exports = { getDispatcher, greenapi, makeBrain };
+module.exports = { getDispatcher, greenapi, makeBrain, store };

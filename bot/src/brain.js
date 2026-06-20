@@ -40,6 +40,15 @@ function extractPhone(text) {
   return digits.length >= 7 ? m[1].trim() : null;
 }
 
+// שחזור שדה תאריך במשבצת מועד (מגיע כ-Date בזיכרון או כמחרוזת מ-JSON).
+function reviveSlot(slot) {
+  if (!slot) return slot;
+  if (slot.date && !(slot.date instanceof Date)) {
+    return Object.assign({}, slot, { date: new Date(slot.date) });
+  }
+  return slot;
+}
+
 const HANDOFF_WORDS = ['שרון', 'טלפון', 'להתקשר', 'לדבר', 'נציג', 'אנושי', 'שיחה אישית'];
 const YES_WORDS = ['כן', 'בטח', 'אשמח', 'סבבה', 'יאללה', 'בהחלט', 'ok', 'אוקיי', 'כמובן'];
 const NO_WORDS = ['לא', 'ממש לא', 'בינתיים לא', 'אחר כך', 'לא תודה'];
@@ -71,6 +80,28 @@ class Brain {
 
   isDone() {
     return this.step === 'done';
+  }
+
+  // ── שמירה/שחזור מצב (לאחסון מתמיד בין הודעות) ──
+  toState() {
+    return {
+      step: this.step,
+      lead: this.lead,
+      proposed: this.proposed,
+      contactPurpose: this.contactPurpose,
+    };
+  }
+
+  loadState(state) {
+    if (!state) return this;
+    this.step = state.step || 'type';
+    this.lead = state.lead || this.lead;
+    this.proposed = (state.proposed || []).map(reviveSlot);
+    this.contactPurpose = state.contactPurpose || null;
+    if (this.lead && this.lead.selectedSlot) {
+      this.lead.selectedSlot = reviveSlot(this.lead.selectedSlot);
+    }
+    return this;
   }
 
   start() {

@@ -8,7 +8,7 @@
  * POST -> טיפול בהתראת Green API.
  */
 
-const { getDispatcher, greenapi } = require('../src/runtime');
+const { getDispatcher, greenapi, store } = require('../src/runtime');
 const { AUTO_REPLY_ALL, TRIGGER_WORD, STOP_WORD } = require('../src/config/bot');
 
 async function readJsonBody(req) {
@@ -34,6 +34,7 @@ module.exports = async function handler(req, res) {
       mode: AUTO_REPLY_ALL ? 'auto-reply-all' : 'manual',
       triggerWord: TRIGGER_WORD,
       stopWord: STOP_WORD,
+      stateStore: store.backend, // 'redis' = מתמיד | 'memory' = זמני
     });
     return;
   }
