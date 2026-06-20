@@ -42,7 +42,7 @@ function main() {
   });
   rl.prompt();
 
-  rl.on('line', (line) => {
+  rl.on('line', async (line) => {
     const text = line.trim();
     if (['יציאה', 'exit', 'quit', 'q'].includes(text.toLowerCase())) {
       console.log('\nלהתראות! 👋');
@@ -50,7 +50,7 @@ function main() {
       return;
     }
 
-    printBot(brain.receive(text));
+    printBot(await brain.receive(text));
 
     if (brain.isDone()) {
       console.log('\n— השיחה הסתיימה. הקלידו "יציאה" לסגירה, או המשיכו לכתוב. —\n');

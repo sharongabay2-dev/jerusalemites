@@ -8,7 +8,7 @@
  * POST -> טיפול בהתראת Green API.
  */
 
-const { getDispatcher, greenapi, store } = require('../src/runtime');
+const { getDispatcher, greenapi, store, calendar } = require('../src/runtime');
 const { AUTO_REPLY_ALL, TRIGGER_WORD, STOP_WORD } = require('../src/config/bot');
 
 async function readJsonBody(req) {
@@ -35,6 +35,7 @@ module.exports = async function handler(req, res) {
       triggerWord: TRIGGER_WORD,
       stopWord: STOP_WORD,
       stateStore: store.backend, // 'redis' = מתמיד | 'memory' = זמני
+      calendar: calendar.backend, // 'google' = יומן אמיתי | 'mock' = בדיקה
     });
     return;
   }

@@ -11,12 +11,14 @@
 const greenapi = require('./integrations/greenapi');
 const { Dispatcher } = require('./dispatcher');
 const { Brain } = require('./brain');
-const { MockCalendar } = require('./calendar');
+const { createCalendar } = require('./calendar-factory');
 const { notifySharon } = require('./integrations/notify');
 const { createStore } = require('./store');
 
+// יומן אחד משותף (גוגל אם מוגדר, אחרת בדיקה) — לכל השיחות.
+const calendar = createCalendar();
+
 function makeBrain() {
-  const calendar = new MockCalendar(new Date());
   return new Brain({ calendar, notify: notifySharon });
 }
 
@@ -30,4 +32,4 @@ function getDispatcher() {
   return dispatcher;
 }
 
-module.exports = { getDispatcher, greenapi, makeBrain, store };
+module.exports = { getDispatcher, greenapi, makeBrain, store, calendar };

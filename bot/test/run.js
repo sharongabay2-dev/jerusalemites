@@ -1,19 +1,25 @@
 'use strict';
 
 /**
- * בדיקות אוטומטיות קלות (בלי תלויות) — מאמתות את חוקי התמחור והזמינות.
- * הרצה:  npm test   (או: node test/run.js)
+ * בדיקות אוטומטיות (בלי תלויות) — תמחור, זמינות, זרימת השיחה החדשה,
+ * הפעלה ידנית, ואחסון מתמיד.
+ * הרצה:  npm test
  */
 
 const assert = require('assert');
 const { Brain } = require('../src/brain');
 const { MockCalendar } = require('../src/calendar');
-const { getTier } = require('../src/config/pricing');
+const { Dispatcher } = require('../src/dispatcher');
+const { MemoryStore } = require('../src/store');
+const { getTier, getTeamBracket, TEAM } = require('../src/config/pricing');
+const {
+  studioSlotsForDay,
+  windowIsFree,
+} = require('../src/scheduling');
 const {
   WINDOW_START_MIN,
   WINDOW_END_MIN,
   STUDIO_DURATION_MIN,
-  GAP_MIN,
   isWorkingDay,
 } = require('../src/config/availability');
 
@@ -24,148 +30,162 @@ function test(name, fn) {
   _tests.push({ name, fn });
 }
 
-// מאסף את ההתראות לשרון במקום להדפיס.
-function makeBrain() {
-  const calendar = new MockCalendar(BASE);
-  const leads = [];
-  const notify = (lead) => leads.push(JSON.parse(JSON.stringify(lead)));
-  const brain = new Brain({ calendar, notify });
-  brain.start();
-  return { brain, calendar, leads };
+// ── עוזרי בדיקה לשיחה מלאה ──
+function newBrain(leads) {
+  const notify = leads ? (l) => leads.push(JSON.parse(JSON.stringify(l))) : () => {};
+  return new Brain({ calendar: new MockCalendar(BASE), notify });
+}
+async function play(brain, inputs) {
+  let last = brain.start();
+  for (const i of inputs) last = await brain.receive(i);
+  return last.join('\n');
 }
 
-console.log('בדיקות חוקי תמחור וזמינות:');
+console.log('בדיקות:');
 
 // ── תמחור ──
-test('מחירי סטודיו תקינים', () => {
+test('מחירי סטודיו', () => {
   assert.strictEqual(getTier('studio', 'base').price, 1250);
   assert.strictEqual(getTier('studio', 'standard').price, 1850);
   assert.strictEqual(getTier('studio', 'premium').price, 2600);
 });
-
-test('מחירי אצל הלקוח תקינים', () => {
+test('מחירי בית העסק', () => {
   assert.strictEqual(getTier('onsite', 'base').price, 2600);
   assert.strictEqual(getTier('onsite', 'standard').price, 3400);
   assert.strictEqual(getTier('onsite', 'premium').price, 4200);
 });
-
-test('סטנדרט מסומנת כמומלצת', () => {
+test('סטנדרט מומלצת', () => {
   assert.strictEqual(getTier('studio', 'standard').recommended, true);
-  assert.strictEqual(getTier('studio', 'base').recommended, false);
+});
+test('מדרגות צוות + דמי הגעה', () => {
+  assert.strictEqual(TEAM.arrivalFee, 1500);
+  assert.strictEqual(getTeamBracket('b5').perPerson, 790);
+  assert.strictEqual(getTeamBracket('b10').perPerson, 650);
+  assert.strictEqual(getTeamBracket('b20').perPerson, 550);
+  assert.strictEqual(getTeamBracket('b40').perPerson, 450);
+  assert.strictEqual(getTeamBracket('b41').perPerson, null);
 });
 
-// ── זמינות ──
-test('כל המועדים בחלון 9:30–13:30 ובימי א׳–ה׳', () => {
-  const cal = new MockCalendar(BASE);
+// ── זמינות (לוגיקה משותפת) ──
+test('משבצות סטודיו בתוך החלון, במשך הנכון, לא חופפות', () => {
   for (const tier of ['base', 'standard', 'premium']) {
-    const slots = cal.proposeStudioSlots(tier, { limit: 20 });
-    assert.ok(slots.length > 0, 'נמצאו מועדים');
+    const slots = studioSlotsForDay(BASE, tier, []);
+    assert.ok(slots.length > 0);
+    let prevEnd = -Infinity;
     for (const s of slots) {
-      assert.ok(s.startMin >= WINDOW_START_MIN, 'אחרי 9:30');
-      assert.ok(s.endMin <= WINDOW_END_MIN, 'לפני 13:30');
+      assert.ok(s.startMin >= WINDOW_START_MIN && s.endMin <= WINDOW_END_MIN, 'בתוך החלון');
       assert.strictEqual(s.endMin - s.startMin, STUDIO_DURATION_MIN[tier], 'משך נכון');
-      assert.ok(isWorkingDay(s.date), 'יום עבודה');
+      assert.ok(s.startMin >= prevEnd, 'לא חופף את הקודם');
+      prevEnd = s.endMin;
     }
   }
 });
-
-test('מועד מוצע שומר רווח של 30 דק׳ מאירוע תפוס', () => {
-  const cal = new MockCalendar(BASE);
-  // ביום הבסיס (ראשון) זרוע אירוע 10:00–11:00.
-  const slots = cal.freeStudioSlots(BASE, 'standard'); // 60 דק'
-  for (const s of slots) {
-    const conflict = !(s.endMin + GAP_MIN <= 600 || 660 + GAP_MIN <= s.startMin);
-    assert.ok(!conflict, `אין חפיפה/רווח חסר במשבצת ${s.startLabel}`);
-  }
-  // 9:30–10:30 לא חוקי (נוגע ב-10:00); ציפייה שלא יוצע.
-  assert.ok(!slots.some((s) => s.startMin === WINDOW_START_MIN), '9:30 חסום ע"י הרווח');
+test('רווח 30 דק׳ נשמר מול אירוע תפוס', () => {
+  const busy = [{ startMin: 10 * 60, endMin: 11 * 60 }]; // 10:00–11:00
+  const slots = studioSlotsForDay(BASE, 'standard', busy); // 60 דק'
+  // 9:30 חסום ע"י הרווח; המשבצת הראשונה האפשרית 11:30.
+  assert.ok(!slots.some((s) => s.startMin === WINDOW_START_MIN), '9:30 חסום');
+  assert.strictEqual(slots[0].startMin, 11 * 60 + 30, 'הראשונה 11:30');
+});
+test('windowIsFree מזהה יום חסום', () => {
+  assert.strictEqual(windowIsFree([]), true);
+  assert.strictEqual(windowIsFree([{ startMin: 0, endMin: 1440 }]), false);
+  assert.strictEqual(windowIsFree([{ startMin: 8 * 60, endMin: 9 * 60 }]), true); // לפני החלון
 });
 
-test('יום חסום לחלוטין לא מציע משבצות סטודיו', () => {
+// ── יומן בדיקה (אסינכרוני) ──
+test('proposeStudioSlots מחזיר משבצות בימי עבודה בלבד', async () => {
   const cal = new MockCalendar(BASE);
-  // יום העבודה השני נזרע כחסום (יום מלא).
-  const onsiteDays = cal.proposeOnsiteDays('standard', { limit: 10 });
-  // בדיקה: כל הימים המוצעים פנויים לחלוטין.
-  for (const d of onsiteDays) {
-    assert.strictEqual(cal.getEventsForDate(d.date).length, 0, 'יום פנוי לחלוטין');
-    assert.ok(isWorkingDay(d.date), 'יום עבודה');
+  const slots = await cal.proposeStudioSlots('standard', { limit: 10 });
+  assert.ok(slots.length > 0);
+  for (const s of slots) assert.ok(isWorkingDay(s.date), 'יום עבודה');
+});
+test('proposeOnsiteDays מחזיר ימים פנויים לחלוטין', async () => {
+  const cal = new MockCalendar(BASE);
+  const days = await cal.proposeOnsiteDays('base', { limit: 5 });
+  for (const d of days) {
+    assert.ok(isWorkingDay(d.date));
+    assert.ok(d.fullDay, 'יום מלא');
   }
 });
 
-// ── שיחה מלאה: סטודיו סטנדרט ──
-test('שיחת סטודיו מלאה קובעת מועד ומתמחרת נכון', () => {
-  const { brain, leads } = makeBrain();
-  brain.receive('1'); // פורטרט
-  brain.receive('שבוע הבא');
-  brain.receive('1'); // סטודיו
-  brain.receive('2'); // סטנדרט
-  brain.receive('1'); // מועד ראשון
-  brain.receive('דנה');
-  const reply = brain.receive('0521234567').join('\n');
-  assert.ok(brain.isDone(), 'השיחה הסתיימה');
-  assert.strictEqual(leads.length, 1, 'יצאה התראה אחת לשרון');
+// ── זרימת שיחה: אדם אחד · סטודיו · סטנדרט ──
+test('אדם אחד · סטודיו · סטנדרט -> קביעה, מחיר ומדיניות', async () => {
+  const leads = [];
+  const brain = newBrain(leads);
+  const reply = await play(brain, ['1', '1', '2', '1', 'דנה כהן', '0521234567', 'dana@x.com']);
+  assert.ok(brain.isDone());
+  assert.strictEqual(leads.length, 1);
   const lead = leads[0];
-  assert.strictEqual(lead.tier.price, 1850, 'מחיר סטנדרט סטודיו');
+  assert.strictEqual(lead.tier.price, 1850);
   assert.strictEqual(lead.location, 'studio');
-  assert.ok(lead.booking, 'נקבע מועד');
-  assert.ok(!lead.booking.fullDay, 'לא יום מלא');
-  assert.ok(reply.includes('1,850'), 'המחיר מופיע באישור');
+  assert.strictEqual(lead.email, 'dana@x.com');
+  assert.ok(lead.booking && !lead.booking.fullDay);
+  assert.ok(/1,850/.test(reply), 'מחיר באישור');
+  assert.ok(/כליל החורש/.test(reply), 'כתובת הסטודיו באישור');
+  assert.ok(/מדיניות ביטולים/.test(reply), 'מדיניות ביטולים באישור');
 });
 
-// ── שיחה מלאה: אצל הלקוח חוסם יום ──
-test('שיחת אצל הלקוח חוסמת יום שלם', () => {
-  const { brain, calendar, leads } = makeBrain();
-  brain.receive('תדמית');
-  brain.receive('החודש');
-  brain.receive('2'); // אצל הלקוח
-  brain.receive('3'); // פרימיום
-  brain.receive('1'); // יום ראשון פנוי
-  brain.receive('יוסי');
-  brain.receive('0501112233');
+// ── אדם אחד · בית העסק · פרימיום · יום מלא + כתובת ──
+test('אדם אחד · בית העסק · פרימיום -> יום מלא וכתובת לקוח', async () => {
+  const leads = [];
+  const brain = newBrain(leads);
+  const reply = await play(brain, [
+    '1', '2', '3', '1', 'יוסי לוי', '0501112233', 'y@x.com', 'הרצל 10, תל אביב',
+  ]);
   const lead = leads[0];
-  assert.strictEqual(lead.tier.price, 4200, 'מחיר פרימיום אצל הלקוח');
-  assert.ok(lead.booking.fullDay, 'יום מלא נחסם');
-  // היום שנקבע אכן מסומן חסום ביומן.
-  assert.ok(calendar.isFullyBlocked(new Date(lead.booking.dateKey + 'T00:00:00')), 'היום חסום ביומן');
+  assert.strictEqual(lead.tier.price, 4200);
+  assert.strictEqual(lead.location, 'onsite');
+  assert.strictEqual(lead.address, 'הרצל 10, תל אביב');
+  assert.ok(lead.booking.fullDay, 'יום מלא');
+  assert.ok(/הרצל 10, תל אביב/.test(reply), 'כתובת הלקוח באישור');
 });
 
-// ── חברה גדולה: לא קובעים מועד, מתאמים שיחה ──
-test('חברה גדולה -> תיאום שיחה, ללא קביעת מועד', () => {
-  const { brain, leads } = makeBrain();
-  brain.receive('4');
-  brain.receive('הייטק, 30 עובדים, 0533334444');
+// ── מספר עובדים · 11–20 ──
+test('מספר עובדים · 11–20 -> תמחור 550 + 1,500 ויום מלא', async () => {
+  const leads = [];
+  const brain = newBrain(leads);
+  const reply = await play(brain, [
+    '2', '3', '1', 'מיכל', '0521119999', 'm@x.com', 'ויצמן 5, רעננה',
+  ]);
+  const lead = leads[0];
+  assert.strictEqual(lead.audience, 'team');
+  assert.strictEqual(lead.team.perPerson, 550);
+  assert.strictEqual(lead.location, 'onsite');
+  assert.ok(lead.booking.fullDay);
+  assert.ok(/550/.test(reply) && /1,500/.test(reply), 'תמחור צוות באישור');
+});
+
+// ── מספר עובדים · 40+ ──
+test('מספר עובדים · 40+ -> הצעה אישית, ללא קביעה', async () => {
+  const leads = [];
+  const brain = newBrain(leads);
+  const reply = await play(brain, ['2', '5', 'רונית', '0539998888', 'r@x.com']);
   assert.ok(brain.isDone());
   const lead = leads[0];
-  assert.ok(!lead.booking, 'אין קביעת מועד אוטומטית');
-  assert.ok(/שיחת טלפון/.test(lead.outcome), 'מתואמת שיחת טלפון');
-  assert.strictEqual(lead.phone, '0533334444', 'נשמר טלפון');
+  assert.strictEqual(lead.team.perPerson, null);
+  assert.ok(!lead.booking, 'אין קביעת מועד');
+  assert.ok(/הצעה אישית/.test(reply), 'הודעת הצעה אישית');
 });
 
-// ── מעבר לשיחה אישית מכל שלב ──
-test('בקשת מעבר לשרון עוברת ל-handoff', () => {
-  const { brain, leads } = makeBrain();
-  brain.receive('1');
-  brain.receive('דחוף');
-  brain.receive('אשמח לדבר עם שרון');
-  brain.receive('רוני, 0547778888');
+// ── מעבר לשרון באמצע ──
+test('בקשה לדבר עם שרון -> איסוף פרטים, ללא קביעה', async () => {
+  const leads = [];
+  const brain = newBrain(leads);
+  await play(brain, ['1', 'אשמח לדבר עם שרון', 'רוני', '0547778888', 'roni@x.com']);
   assert.ok(brain.isDone());
-  assert.ok(!leads[0].booking, 'אין מועד');
-  assert.ok(/שיחה אישית/.test(leads[0].outcome));
+  assert.ok(!leads[0].booking);
+  assert.ok(/שיחה אישית|לדבר/.test(leads[0].outcome));
+  assert.strictEqual(leads[0].email, 'roni@x.com');
 });
 
 // ── הפעלה ידנית (Dispatcher) ──
-const { Dispatcher } = require('../src/dispatcher');
-const { notifySharon } = require('../src/integrations/notify');
-
-function makeDispatcher(autoReplyAll = false) {
+function makeDispatcher(autoReplyAll = false, store) {
   const sent = [];
   const greenapi = { sendMessage: async (chatId, message) => sent.push({ chatId, message }) };
   const makeBrain = () => new Brain({ calendar: new MockCalendar(BASE), notify: () => {} });
   const d = new Dispatcher({
-    greenapi,
-    makeBrain,
-    autoReplyAll,
-    logger: { log: () => {}, error: () => {} },
+    greenapi, makeBrain, store, autoReplyAll, logger: { log() {}, error() {} },
   });
   return { d, sent };
 }
@@ -174,97 +194,72 @@ const inc = (text) => ({ kind: 'message', direction: 'incoming', viaApi: false, 
 const out = (text) => ({ kind: 'message', direction: 'outgoing', viaApi: false, chatId: CHAT, text });
 const botApi = (text) => ({ kind: 'message', direction: 'outgoing', viaApi: true, chatId: CHAT, text });
 
-test('כברירת מחדל הבוט שותק להודעת לקוח', async () => {
+test('ברירת מחדל: הבוט שותק להודעת לקוח', async () => {
   const { d, sent } = makeDispatcher(false);
   await d.onEvent(inc('שלום'));
-  assert.strictEqual(sent.length, 0, 'אין תגובה לפני הפעלה');
+  assert.strictEqual(sent.length, 0);
 });
-
 test('"בוט" מהמכשיר של שרון מפעיל ומברך', async () => {
   const { d, sent } = makeDispatcher(false);
   await d.onEvent(out('בוט'));
-  assert.strictEqual(sent.length, 1, 'נשלחה ברכה');
-  assert.ok(/ברוכים הבאים/.test(sent[0].message), 'תוכן הברכה');
+  assert.strictEqual(sent.length, 1);
+  assert.ok(/ברוכים הבאים/.test(sent[0].message));
 });
-
-test('הודעה מלקוח שמכילה "בוט" אינה מפעילה (רק הודעה יוצאת מפעילה)', async () => {
+test('הודעת לקוח "בוט" אינה מפעילה', async () => {
   const { d, sent } = makeDispatcher(false);
   await d.onEvent(inc('בוט'));
-  assert.strictEqual(sent.length, 0, 'הודעת לקוח לא מפעילה');
+  assert.strictEqual(sent.length, 0);
 });
-
-test('הודעות שהבוט עצמו שלח מסוננות (אין לולאה)', async () => {
+test('הודעות API של הבוט מסוננות (אין לולאה)', async () => {
   const { d, sent } = makeDispatcher(false);
   await d.onEvent(out('בוט'));
   const before = sent.length;
-  await d.onEvent(botApi('שלום, וברוכים הבאים...'));
-  assert.strictEqual(sent.length, before, 'הודעת API של הבוט לא מטופלת');
+  await d.onEvent(botApi('שלום...'));
+  assert.strictEqual(sent.length, before);
 });
-
 test('לאחר הפעלה הבוט מנהל את השיחה', async () => {
   const { d, sent } = makeDispatcher(false);
-  await d.onEvent(out('בוט')); // ברכה
-  await d.onEvent(inc('1')); // פורטרט -> שאלת "מתי"
-  assert.ok(sent.length >= 2, 'הבוט הגיב להודעת הלקוח');
-  assert.ok(/מתי/.test(sent[sent.length - 1].message), 'המשיך בסינון');
+  await d.onEvent(out('בוט'));
+  await d.onEvent(inc('1')); // אדם אחד -> שאלת מיקום
+  assert.ok(/היכן/.test(sent[sent.length - 1].message));
 });
-
-test('"סיום" מחזיר שליטה לשרון והבוט שותק שוב', async () => {
+test('"סיום" מחזיר שליטה לשרון', async () => {
   const { d, sent } = makeDispatcher(false);
   await d.onEvent(out('בוט'));
   await d.onEvent(out('סיום'));
   const before = sent.length;
   await d.onEvent(inc('1'));
-  assert.strictEqual(sent.length, before, 'אין תגובה אחרי סיום');
+  assert.strictEqual(sent.length, before);
 });
-
-test('מתג AUTO_REPLY_ALL גורם לבוט לענות לכולם', async () => {
+test('AUTO_REPLY_ALL עונה לכולם', async () => {
   const { d, sent } = makeDispatcher(true);
-  await d.onEvent(inc('שלום')); // ללא "בוט" -> מברך מיד
-  assert.ok(sent.length >= 1, 'ענה בלי הפעלה ידנית');
+  await d.onEvent(inc('שלום'));
   assert.ok(/ברוכים הבאים/.test(sent[0].message));
 });
 
-// ── אחסון מתמיד: שיחה פעילה שורדת אתחול מופע serverless ──
-const { MemoryStore } = require('../src/store');
-
-test('שיחה פעילה נשמרת באחסון ושורדת "אתחול" (Dispatcher חדש, אותו store)', async () => {
-  const store = new MemoryStore(); // משותף בין שני המופעים
-  const makeBrain = () => new Brain({ calendar: new MockCalendar(BASE), notify: () => {} });
-  const newDispatcher = () => {
-    const sent = [];
-    const greenapi = { sendMessage: async (c, m) => sent.push({ chatId: c, message: m }) };
-    const d = new Dispatcher({ greenapi, makeBrain, store, logger: { log() {}, error() {} } });
-    return { d, sent };
-  };
-
-  // מופע 1: שרון מפעיל, הלקוח עונה שלב אחד.
-  const a = newDispatcher();
+// ── אחסון מתמיד: שרידות אחרי "אתחול" ──
+test('שיחה פעילה שורדת אתחול (Dispatcher חדש, אותו store)', async () => {
+  const store = new MemoryStore();
+  const a = makeDispatcher(false, store);
   await a.d.onEvent(out('בוט'));
-  await a.d.onEvent(inc('1')); // פורטרט -> "מתי"
-
-  // מופע 2 (כאילו ה-serverless התאתחל) — אותו store בלבד.
-  const b = newDispatcher();
-  await b.d.onEvent(inc('בשבוע הבא')); // צריך להמשיך לשאלת "איפה"
-  assert.ok(b.sent.length >= 1, 'הבוט המשיך אחרי אתחול');
-  assert.ok(/היכן|איפה/.test(b.sent[b.sent.length - 1].message), 'המשיך לשלב הנכון (לא שכח)');
+  await a.d.onEvent(inc('1')); // -> מיקום
+  const b = makeDispatcher(false, store); // "אתחול"
+  await b.d.onEvent(inc('1')); // בסטודיו -> חבילות
+  assert.ok(/החבילות שלנו/.test(b.sent[b.sent.length - 1].message), 'המשיך מהשלב הנכון');
 });
-
-test('שיחה מלאה עוברת round-trip של סריאליזציה עד קביעת מועד', async () => {
+test('round-trip סריאליזציה מלא עד אישור', async () => {
   const store = new MemoryStore();
   const makeBrain = () => new Brain({ calendar: new MockCalendar(BASE), notify: () => {} });
   const sent = [];
   const greenapi = { sendMessage: async (c, m) => sent.push({ chatId: c, message: m }) };
-  // Dispatcher חדש בכל הודעה — מאלץ שמירה/שחזור בכל צעד.
   const fresh = () => new Dispatcher({ greenapi, makeBrain, store, logger: { log() {}, error() {} } });
-
   await fresh().onEvent(out('בוט'));
-  for (const msg of ['1', 'בשבועיים הקרובים', '1', '2', '1', 'דנה כהן', '0521234567']) {
-    await fresh().onEvent(inc(msg));
+  for (const m of ['1', '1', '2', '1', 'דנה', '0521234567', 'dana@x.com']) {
+    await fresh().onEvent(inc(m));
   }
   const last = sent[sent.length - 1].message;
-  assert.ok(/המועד נקבע/.test(last), 'הגיע לאישור קביעת מועד');
-  assert.ok(/1,850/.test(last), 'המחיר הנכון באישור (סטנדרט סטודיו)');
+  assert.ok(/ההזמנה נקלטה/.test(last), 'הגיע לאישור');
+  assert.ok(/1,850/.test(last), 'מחיר נכון');
 });
 
 (async () => {
@@ -281,4 +276,3 @@ test('שיחה מלאה עוברת round-trip של סריאליזציה עד ק�
   }
   console.log(`\n✅ כל ${passed} הבדיקות עברו.`);
 })();
-

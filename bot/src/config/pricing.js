@@ -1,89 +1,55 @@
 'use strict';
 
 /**
- * מחירון העסק — מקור אמת יחיד למחירים, מספר תמונות וסטים.
- * כל שינוי מחיר עתידי נעשה כאן בלבד.
+ * מחירון העסק — מקור אמת יחיד.
  *
- * שני מיקומים: 'studio' (בסטודיו) ו-'onsite' (אצל הלקוח).
- * שלוש חבילות: 'base', 'standard', 'premium'.
+ * שני מסלולים:
+ *  - אדם אחד: צילום בסטודיו או בבית העסק, שלוש חבילות (base/standard/premium).
+ *  - מספר עובדים: תמיד בבית העסק, תמחור לפי מדרגות + דמי הגעה והקמה קבועים.
  */
 
 const PACKAGES = {
   studio: {
     label: 'בסטודיו',
+    includes: ['שיחת אפיון', 'כל חומר הגלם', 'עריכה מקצועית'],
     tiers: {
-      base: {
-        id: 'base',
-        label: 'בסיס',
-        price: 1250,
-        photos: 5,
-        sets: 2,
-        recommended: false,
-      },
-      standard: {
-        id: 'standard',
-        label: 'סטנדרט',
-        price: 1850,
-        photos: 10,
-        sets: 4,
-        recommended: true,
-      },
-      premium: {
-        id: 'premium',
-        label: 'פרימיום',
-        price: 2600,
-        photos: 15,
-        sets: 6,
-        recommended: false,
-      },
+      base: { id: 'base', label: 'בסיס', price: 1250, photos: 5, sets: 2, recommended: false },
+      standard: { id: 'standard', label: 'סטנדרט', price: 1850, photos: 10, sets: 4, recommended: true },
+      premium: { id: 'premium', label: 'פרימיום', price: 2600, photos: 15, sets: 6, recommended: false },
     },
   },
   onsite: {
-    // אצל הלקוח — כולל הקמת סטודיו מלא בשטח, תוצאה זהה לסטודיו.
-    label: 'אצל הלקוח (כולל הקמת סטודיו מלא, תוצאה זהה)',
+    label: 'בבית העסק',
+    includes: ['הקמת סטודיו מלא בשטח', 'שיחת אפיון', 'כל חומר הגלם', 'עריכה מקצועית'],
     tiers: {
-      base: {
-        id: 'base',
-        label: 'בסיס',
-        price: 2600,
-        photos: 5,
-        sets: 2,
-        recommended: false,
-      },
-      standard: {
-        id: 'standard',
-        label: 'סטנדרט',
-        price: 3400,
-        photos: 10,
-        sets: 4,
-        recommended: true,
-      },
-      premium: {
-        id: 'premium',
-        label: 'פרימיום',
-        price: 4200,
-        photos: 15,
-        sets: 6,
-        recommended: false,
-      },
+      base: { id: 'base', label: 'בסיס', price: 2600, photos: 5, sets: 2, recommended: false },
+      standard: { id: 'standard', label: 'סטנדרט', price: 3400, photos: 10, sets: 4, recommended: true },
+      premium: { id: 'premium', label: 'פרימיום', price: 4200, photos: 15, sets: 6, recommended: false },
     },
   },
 };
 
-// תמחור צוות עובדים — טווח לאדם (הצעת מחיר מדויקת נסגרת מול שרון).
-const TEAM_PER_PERSON = { min: 400, max: 690 };
-
-// מה שכל חבילה כוללת (מוצג ללקוח).
-const PACKAGE_INCLUDES = [
-  'שיחת אפיון לפני הצילום',
-  'כל חומר הגלם מהצילום',
-  'עריכה מקצועית של התמונות הנבחרות',
-];
+// צילום מספר עובדים (תמיד בבית העסק).
+const TEAM = {
+  arrivalFee: 1500, // דמי הגעה והקמה — נוספים תמיד.
+  // מדרגות לפי מספר העובדים. perPerson=null => הצעה אישית (לא מתומחר אוטומטית).
+  brackets: [
+    { id: 'b5', label: 'עד 5 עובדים', perPerson: 790 },
+    { id: 'b10', label: '6–10 עובדים', perPerson: 650 },
+    { id: 'b20', label: '11–20 עובדים', perPerson: 550 },
+    { id: 'b40', label: '21–40 עובדים', perPerson: 450 },
+    { id: 'b41', label: 'יותר מ-40 עובדים', perPerson: null },
+  ],
+};
 
 function getTier(location, tierId) {
   const loc = PACKAGES[location];
   if (!loc) return null;
   return loc.tiers[tierId] || null;
+}
+
+function getTeamBracket(id) {
+  return TEAM.brackets.find((b) => b.id === id) || null;
 }
 
 function formatPrice(amount) {
@@ -92,8 +58,8 @@ function formatPrice(amount) {
 
 module.exports = {
   PACKAGES,
-  TEAM_PER_PERSON,
-  PACKAGE_INCLUDES,
+  TEAM,
   getTier,
+  getTeamBracket,
   formatPrice,
 };

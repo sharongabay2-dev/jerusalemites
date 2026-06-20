@@ -1,182 +1,175 @@
 'use strict';
 
 /**
- * כל טקסטי הבוט בעברית — טון מאופק, מקצועי ומכובד (קהל יוקרתי).
+ * כל טקסטי הבוט בעברית — טון מאופק, מקצועי ומכובד.
  * הערה: שרון הוא גבר — כל התייחסות אליו בלשון זכר.
- * מרוכז כאן כדי שיהיה קל לערוך ניסוחים בלי לגעת בלוגיקה.
+ * הבחירות הן לפי מספרים (הלקוח בוחר); רק פרטי הקשר בסוף מוקלדים.
  */
 
-const { formatPrice, PACKAGE_INCLUDES, TEAM_PER_PERSON } = require('./config/pricing');
-
-// ההצעה לעבור לשיחה אישית נאמרת במלואה פעם אחת (בפתיחה),
-// ומוזכרת בעדינות רק במקומות טבעיים (לפני בחירת חבילה / לפני קביעת מועד).
-const HANDOFF_OPEN =
-  'בכל שלב תוכלו לשוחח ישירות עם שרון — כתבו "שרון" או "טלפון" ואחבר אתכם.';
-const HANDOFF_SOFT =
-  'אם תעדיפו, אפשר כמובן לתאם זאת ישירות מול שרון.';
+const { PACKAGES, TEAM, formatPrice } = require('./config/pricing');
+const business = require('./config/business');
 
 const messages = {
-  handoffOpen: HANDOFF_OPEN,
-  handoffSoft: HANDOFF_SOFT,
-
   greeting() {
     return (
-      'שלום, וברוכים הבאים לסטודיו הצילום של שרון גבאי.\n' +
-      'אשמח לסייע לכם בתיאום צילום תדמית או פורטרט (פריסה ארצית).\n\n' +
-      'אפתח בכמה שאלות קצרות כדי להתאים לכם את המענה המדויק.\n\n' +
-      'איזה סוג צילום אתם מבקשים?\n' +
-      '1. פורטרט אישי / תדמית\n' +
-      '2. הדשוטס לעובד או למספר אנשים בודדים\n' +
-      '3. צילום צוות / קבוצה\n' +
-      '4. חברה גדולה — הדשוטס למספר רב של עובדים\n\n' +
-      'אפשר לבחור מספר, או לכתוב במילים שלכם.\n' +
-      HANDOFF_OPEN
+      'שלום, וברוכים הבאים לסטודיו של שרון גבאי. אני העוזר הדיגיטלי.\n' +
+      'בכל שלב תוכלו לבקש לדבר עם שרון ישירות.\n' +
+      'מוזמנים להתרשם מעבודות ומחוות דעת של לקוחות:\n' +
+      `פורטפוליו › ${business.portfolioUrl}\n` +
+      `ביקורות › ${business.reviewsUrl}\n\n` +
+      'איזה צילום תרצו?\n' +
+      '1 · צילום לאדם אחד\n' +
+      '2 · צילום למספר עובדים'
     );
   },
 
-  askWhen() {
+  askLocation() {
     return (
-      'תודה. מתי בכוונתכם לצלם?\n' +
-      'לדוגמה: "בשבועיים הקרובים", "בחודש הבא", או "ללא דחיפות מיוחדת".'
+      'היכן נוח לכם לצלם?\n' +
+      `1 · בסטודיו של שרון, ב${business.studioShortLocation}\n` +
+      '2 · בבית העסק — שרון מגיע ומקים סטודיו מלא אצלכם (תוצאה זהה; התעריף גבוה יותר)'
     );
   },
 
-  askWhere() {
-    return (
-      'היכן יהיה נוח לכם לצלם?\n' +
-      '1. בסטודיו של שרון\n' +
-      '2. אצל הלקוח — שרון מגיע אליכם ומקים סטודיו מלא בשטח, בתוצאה זהה לצילום בסטודיו'
-    );
-  },
-
-  notUnderstood() {
-    return 'מתנצל, לא הצלחתי להבין. אפשר לבחור מספר מהאפשרויות, או לנסח שוב.';
-  },
-
-  // הצגת חבילות עבור מיקום (studio/onsite).
   presentPackages(location) {
-    const { PACKAGES } = require('./config/pricing');
     const loc = PACKAGES[location];
     const t = loc.tiers;
-
-    const includes = PACKAGE_INCLUDES.map((x) => `   • ${x}`).join('\n');
-
+    const includes = loc.includes.join(', ');
     return (
-      `אלה החבילות שלנו ${loc.label}:\n\n` +
-      `1. בסיס — ${formatPrice(t.base.price)}\n` +
-      `   ${t.base.photos} תמונות, ${t.base.sets} סטים\n\n` +
-      `2. סטנדרט — ${formatPrice(t.standard.price)}  (המומלצת)\n` +
-      `   ${t.standard.photos} תמונות, ${t.standard.sets} סטים\n` +
-      `   החבילה שרוב הלקוחות בוחרים — האיזון המיטבי בין מגוון לתמורה.\n\n` +
-      `3. פרימיום — ${formatPrice(t.premium.price)}\n` +
-      `   ${t.premium.photos} תמונות, ${t.premium.sets} סטים\n\n` +
-      `כל החבילות כוללות:\n${includes}\n\n` +
-      'איזו חבילה מתאימה לכם? (בחרו 1 / 2 / 3)\n' +
-      HANDOFF_SOFT
+      `החבילות שלנו ${loc.label}:\n` +
+      `1 · בסיס — ${formatPrice(t.base.price)} (${t.base.photos} תמונות, ${t.base.sets} סטים)\n` +
+      `2 · סטנדרט — ${formatPrice(t.standard.price)} (${t.standard.photos} תמונות, ${t.standard.sets} סטים) — מומלצת\n` +
+      `3 · פרימיום — ${formatPrice(t.premium.price)} (${t.premium.photos} תמונות, ${t.premium.sets} סטים)\n` +
+      `כולל: ${includes}.\n\n` +
+      'איזו חבילה מתאימה לכם? (1 / 2 / 3)'
     );
   },
 
-  teamPricing() {
+  askEmployees() {
     return (
-      'לצילום צוות או קבוצה התמחור הוא לפי מספר המשתתפים — ' +
-      `${formatPrice(TEAM_PER_PERSON.min)}–${formatPrice(TEAM_PER_PERSON.max)} לאדם.\n` +
-      'כל משתתף מצולם באופן מקצועי, וההצעה המדויקת נסגרת בהתאם למספר העובדים ולצרכים.\n\n' +
-      'אשמח לתאם עבורכם שיחה קצרה עם שרון לבניית הצעה מדויקת. לתאם? (כן / לא)'
+      'כמה עובדים?\n' +
+      '1 · עד 5\n' +
+      '2 · 6–10\n' +
+      '3 · 11–20\n' +
+      '4 · 21–40\n' +
+      '5 · יותר מ-40'
     );
   },
 
-  bigCompany() {
+  teamPriced(bracket) {
     return (
-      'פרויקט הדשוטס למספר רב של עובדים הוא תחום שבו לשרון ניסיון רב.\n' +
-      'בפרויקטים בהיקף כזה איננו קובעים מועד באופן אוטומטי — שרון מתאם אתכם ישירות, ' +
-      'כדי לבנות לוח זמנים שמתאים למספר העובדים ולמיקום.\n\n' +
-      'אעביר את הפנייה לשרון, והוא ישוב אליכם לתיאום שיחה. ' +
-      'על שם מי לרשום, ובאיזה מספר ליצירת קשר?'
+      `לצילום ${bracket.label} בבית העסק:\n` +
+      `${formatPrice(bracket.perPerson)} לעובד, בתוספת ${formatPrice(TEAM.arrivalFee)} דמי הגעה והקמה.\n` +
+      'הסכום הסופי ייקבע לפי מספר העובדים בפועל, ושרון יאשר אותו אתכם.'
     );
   },
 
-  // הצגת מועדי סטודיו פנויים (משבצות נפרדות, לא חופפות).
-  presentStudioSlots(slots, tierLabel) {
-    if (!slots.length) {
-      return (
-        'כרגע לא נמצאה משבצת פנויה קרובה ביומן. ' +
-        'אעביר את הפנייה לשרון, והוא יתאם אתכם מועד באופן אישי.'
-      );
-    }
+  teamCustom() {
+    return (
+      'לצוות של יותר מ-40 עובדים שרון מתאים הצעה אישית.\n' +
+      'נשמח לכמה פרטים ושרון יחזור אליכם עם הצעה מותאמת.'
+    );
+  },
+
+  presentStudioSlots(slots) {
+    if (!slots.length) return messages.noSlots();
     const list = slots
-      .map((s, i) => `${i + 1}. ${s.dateLabel}, בשעה ${s.startLabel}–${s.endLabel}`)
+      .map((s, i) => `${i + 1} · ${s.dateLabel}, בשעה ${s.startLabel}–${s.endLabel}`)
       .join('\n');
     return (
-      `נעבור לתיאום מועד לצילום ${tierLabel}. ${HANDOFF_SOFT}\n` +
-      'אלה המועדים הפנויים הקרובים (ימים א׳–ה׳, בין 9:30 ל-13:30):\n\n' +
+      'מצוין. אלה המועדים הפנויים הקרובים (ימים א׳–ה׳, בין 9:30 ל-13:30):\n' +
       list +
-      '\n\nאיזה מהם מתאים לכם? (בחרו מספר)'
+      '\n\nאיזה מועד מתאים לכם? (בחרו מספר)'
     );
   },
 
-  // הצגת ימים פנויים לצילום אצל הלקוח.
   presentOnsiteDays(days) {
-    if (!days.length) {
-      return (
-        'כרגע לא נמצא יום פנוי לחלוטין קרוב ביומן. ' +
-        'אעביר את הפנייה לשרון, והוא יתאם אתכם מועד באופן אישי.'
-      );
-    }
-    const list = days.map((d, i) => `${i + 1}. ${d.dateLabel}`).join('\n');
+    if (!days.length) return messages.noSlots();
+    const list = days.map((d, i) => `${i + 1} · ${d.dateLabel}`).join('\n');
     return (
-      'צילום אצל הלקוח שומר לכם יום שלם ביומן של שרון. ' +
-      'את שאר הפרטים (שעת הגעה, חניה, חדר וכד׳) שרון יסכם אתכם בנפרד. ' +
-      HANDOFF_SOFT +
-      '\n\nאלה הימים הפנויים הקרובים (ימים א׳–ה׳):\n\n' +
+      'צילום בבית העסק שומר יום מלא ביומן של שרון. אלה הימים הפנויים הקרובים (ימים א׳–ה׳):\n' +
       list +
       '\n\nאיזה יום מתאים לכם? (בחרו מספר)'
     );
   },
 
+  noSlots() {
+    return 'כרגע לא נמצא מועד פנוי קרוב ביומן. אעביר את הפנייה לשרון והוא יתאם אתכם מועד באופן אישי.';
+  },
+
   askName() {
-    return 'כמעט סיימנו. על שם מי לרשום את הפנייה?';
+    return 'מצוין. נסיים בכמה פרטים ליצירת קשר. מה השם המלא?';
   },
-
   askPhone() {
-    return 'ומה מספר הטלפון או הוואטסאפ הנוח ביותר ליצירת קשר?';
+    return 'מספר טלפון ליצירת קשר?';
+  },
+  askEmail() {
+    return 'כתובת אימייל (לשליחת זימון ליומן)?';
+  },
+  askAddress() {
+    return 'מה הכתובת המלאה שבה יתקיים הצילום?';
   },
 
-  confirmStudio(name, tier, booking) {
-    return (
-      `תודה, ${name}. המועד נקבע:\n\n` +
-      `${booking.dateLabel}, בשעה ${booking.startLabel}–${booking.endLabel}\n` +
-      `חבילת ${tier.label} — ${formatPrice(tier.price)} (${tier.photos} תמונות, ${tier.sets} סטים)\n\n` +
-      'שרון קיבל את כל הפרטים, וישוב אליכם עם אישור ושיחת אפיון קצרה לפני הצילום.\n' +
-      'נשמח לראותכם.'
-    );
+  // אישור הזמנה ללקוח.
+  confirm(lead) {
+    const lines = [];
+    lines.push(`תודה, ${lead.name}. ההזמנה נקלטה.`);
+
+    const b = lead.booking;
+    const when = b.fullDay
+      ? `${b.dateLabel} · יום מלא`
+      : `${b.dateLabel} · ${b.startLabel}–${b.endLabel}`;
+    lines.push(`${when} · ${priceLine(lead)}`);
+
+    const place =
+      lead.location === 'onsite' ? lead.address : business.studioAddress;
+    lines.push(`מיקום: ${place}`);
+
+    lines.push('מדיניות ביטולים:');
+    for (const p of business.cancellationPolicy) lines.push(`· ${p}`);
+
+    lines.push('שרון יחזור אליכם לאישור ולשיחת אפיון קצרה לפני הצילום.');
+    return lines.join('\n');
   },
 
-  confirmOnsite(name, tier, booking) {
+  teamCustomDone(name) {
     return (
-      `תודה, ${name}. היום נשמר עבורכם:\n\n` +
-      `${booking.dateLabel} — יום מלא שמור עבורכם\n` +
-      `חבילת ${tier.label} אצל הלקוח — ${formatPrice(tier.price)} (${tier.photos} תמונות, ${tier.sets} סטים)\n\n` +
-      'שרון קיבל את כל הפרטים, ייצור אתכם קשר לסגירת שעת ההגעה ושאר הפרטים, ' +
-      'ויקיים שיחת אפיון קצרה לפני הצילום.\n' +
-      'נשמח לראותכם.'
+      `תודה, ${name}. העברתי את הפרטים לשרון, והוא יחזור אליכם עם הצעה אישית מותאמת.`
     );
   },
 
   handoff(name) {
     const who = name ? `${name}, ` : '';
-    return (
-      `${who}בהחלט. אעביר את הפרטים לשרון, והוא ייצור אתכם קשר באופן אישי בהקדם.\n` +
-      'אם תרצו, אפשר להוסיף כאן פרטים נוספים והם יצורפו לפנייה.'
-    );
+    return `${who}בהחלט. נשמח לכמה פרטים, ושרון ייצור אתכם קשר באופן אישי בהקדם.`;
   },
 
-  askContactForHandoff() {
-    return 'כדי ששרון יוכל לשוב אליכם — על שם מי לרשום, ובאיזה מספר ליצירת קשר?';
+  handoffDone(name) {
+    return `תודה, ${name}. העברתי את הפרטים לשרון, והוא יחזור אליכם בהקדם.`;
+  },
+
+  bookingFailed() {
+    return 'מתנצל — נראה שהמועד נתפס בדיוק כעת. העברתי את הפנייה לשרון, והוא יתאם אתכם מועד חלופי באופן אישי.';
+  },
+
+  notUnderstood() {
+    return 'סליחה, לא הבנתי. אפשר לבחור אחת מהאפשרויות לפי המספר.';
   },
 
   goodbye() {
     return 'תודה רבה, ויום טוב. אני כאן לכל שאלה נוספת.';
   },
 };
+
+// שורת החבילה/מחיר באישור — שונה בין אדם אחד לצוות.
+function priceLine(lead) {
+  if (lead.audience === 'team' && lead.team) {
+    return (
+      `${lead.team.label} — ${formatPrice(lead.team.perPerson)} לעובד + ` +
+      `${formatPrice(TEAM.arrivalFee)} הגעה והקמה`
+    );
+  }
+  const tier = lead.tier;
+  return `חבילת ${tier.label} ${PACKAGES[lead.location].label} — ${formatPrice(tier.price)}`;
+}
 
 module.exports = messages;

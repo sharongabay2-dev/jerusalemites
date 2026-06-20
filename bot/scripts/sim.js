@@ -75,7 +75,9 @@ async function run() {
   console.log('(אין לולאה — כצפוי)');
 
   show('4) הלקוח עונה — הבוט מנהל את השיחה');
-  for (const msg of ['1', 'בשבועיים הקרובים', '1', '2', '1', 'דנה כהן', '0521234567']) {
+  // אדם אחד · סטודיו · סטנדרט · מועד ראשון · ואז פרטי קשר
+  const inputs = ['1', '1', '2', '1', 'דנה כהן', '052-1234567', 'dana@example.com'];
+  for (const msg of inputs) {
     console.log('🧑 לקוח: ' + msg);
     await dispatcher.onEvent(fromCustomer(CUSTOMER, msg));
   }

@@ -83,7 +83,7 @@ class Dispatcher {
     // שיחה קיימת — משחזרים את המוח מהמצב השמור וממשיכים.
     if (session && session.brain) {
       const brain = this.makeBrain().loadState(session.brain);
-      const replies = brain.receive(text);
+      const replies = await brain.receive(text);
       await this.store.set(chatId, { active: true, brain: brain.toState() });
       return this._send(chatId, replies);
     }

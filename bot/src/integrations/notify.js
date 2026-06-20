@@ -35,11 +35,17 @@ function notifySharon(lead, opts = {}) {
   lines.push('🔔 התראה לשרון — פנייה חדשה מהבוט');
   lines.push('   (שלב בדיקה: הדפסה ללוג בלבד)');
   lines.push('==================================================');
+  const audienceLabel =
+    lead.audience === 'team' ? 'מספר עובדים' : lead.audience === 'single' ? 'אדם אחד' : '—';
+  const locationLabel =
+    lead.location === 'studio' ? 'בסטודיו' : lead.location === 'onsite' ? 'בבית העסק' : '—';
+
   lines.push(`שם: ${lead.name || '—'}`);
-  lines.push(`טלפון/וואטסאפ: ${lead.phone || '—'}`);
-  lines.push(`סוג הפנייה: ${lead.typeLabel || '—'}`);
-  lines.push(`מסגרת זמן שביקש הלקוח: ${lead.when || '—'}`);
-  lines.push(`מיקום: ${lead.locationLabel || '—'}`);
+  lines.push(`טלפון: ${lead.phone || '—'}`);
+  lines.push(`אימייל: ${lead.email || '—'}`);
+  if (lead.address) lines.push(`כתובת: ${lead.address}`);
+  lines.push(`סוג הפנייה: ${audienceLabel}`);
+  lines.push(`מיקום: ${locationLabel}`);
 
   if (lead.tier) {
     lines.push(
@@ -47,14 +53,21 @@ function notifySharon(lead, opts = {}) {
         `(${lead.tier.photos} תמונות, ${lead.tier.sets} סטים)`
     );
   }
+  if (lead.team) {
+    const price =
+      lead.team.perPerson === null
+        ? 'הצעה אישית (40+ עובדים)'
+        : `${formatPrice(lead.team.perPerson)} לעובד + ${formatPrice(1500)} הגעה והקמה`;
+    lines.push(`צוות: ${lead.team.label} — ${price}`);
+  }
 
   if (lead.booking) {
     lines.push('--------------------------------------------------');
-    lines.push('📅 מועד שנקבע (ביומן בדיקה מדומה):');
+    lines.push('📅 מועד שנקבע:');
     lines.push(`   ${lead.booking.dateLabel}`);
     lines.push(
       lead.booking.fullDay
-        ? `   יום מלא חסום (${lead.booking.startLabel}–${lead.booking.endLabel})`
+        ? `   יום מלא (${lead.booking.startLabel}–${lead.booking.endLabel})`
         : `   ${lead.booking.startLabel}–${lead.booking.endLabel}`
     );
   }
