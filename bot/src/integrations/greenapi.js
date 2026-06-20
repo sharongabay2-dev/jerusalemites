@@ -10,13 +10,28 @@
  *   GREENAPI_ID_INSTANCE   (ברירת מחדל: 7107658538)
  *   GREENAPI_API_TOKEN     (חובה — מוזרק כסוד)
  *   GREENAPI_API_URL       (אופציונלי — נגזר אוטומטית מה-idInstance)
+ *
+ * אם אין משתני סביבה (למשל פריסת Vercel ללא תמיכה בהזרקת סוד), נקרא גיבוי
+ * מקובץ מקומי `src/config/secret.local.js` שאינו נכנס ל-git אך נארז עם הפריסה.
  */
 
-const ID_INSTANCE = process.env.GREENAPI_ID_INSTANCE || '7107658538';
-const API_TOKEN = process.env.GREENAPI_API_TOKEN || '';
+// גיבוי סוד מקובץ מקומי (require סטטי כדי שמנגנון האריזה של Vercel יכלול אותו).
+let _fileSecret = {};
+try {
+  _fileSecret = require('../config/secret.local');
+} catch (_) {
+  _fileSecret = {};
+}
+function readSecret(key) {
+  return _fileSecret && _fileSecret[key] ? _fileSecret[key] : '';
+}
+
+const ID_INSTANCE = process.env.GREENAPI_ID_INSTANCE || readSecret('GREENAPI_ID_INSTANCE') || '7107658538';
+const API_TOKEN = process.env.GREENAPI_API_TOKEN || readSecret('GREENAPI_API_TOKEN') || '';
 // Green API מנתב לפי קידומת ה-instance (למשל 7107 -> 7107.api.greenapi.com).
 const API_URL =
   process.env.GREENAPI_API_URL ||
+  readSecret('GREENAPI_API_URL') ||
   `https://${ID_INSTANCE.slice(0, 4)}.api.greenapi.com`;
 
 function ensureToken() {
@@ -124,6 +139,7 @@ module.exports = {
   ID_INSTANCE,
   API_URL,
   hasToken: () => !!API_TOKEN,
+  matchesToken: (k) => !!API_TOKEN && k === API_TOKEN,
   sendMessage,
   getSettings,
   setSettings,
