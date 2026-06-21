@@ -12,7 +12,7 @@
  *   GET /api/setup?key=<apiToken>&url=<custom>   -> webhookUrl מותאם.
  */
 
-const { greenapi } = require('../src/runtime');
+const { greenapi, calendar } = require('../src/runtime');
 
 module.exports = async function handler(req, res) {
   const url = new URL(req.url, `https://${req.headers.host}`);
@@ -27,6 +27,22 @@ module.exports = async function handler(req, res) {
     if (url.searchParams.get('show')) {
       const settings = await greenapi.getSettings();
       res.status(200).json({ ok: true, settings });
+      return;
+    }
+
+    // בדיקת חיבור היומן: קריאת זמינות אמיתית (גוגל בפרודקשן).
+    if (url.searchParams.get('check') === 'calendar') {
+      try {
+        const slots = await calendar.proposeStudioSlots('standard');
+        res.status(200).json({
+          ok: true,
+          backend: calendar.backend,
+          slotsCount: slots.length,
+          sample: slots.slice(0, 3).map((s) => ({ date: s.dateKey, start: s.startLabel, end: s.endLabel })),
+        });
+      } catch (e) {
+        res.status(200).json({ ok: false, backend: calendar.backend, error: e && e.message });
+      }
       return;
     }
 

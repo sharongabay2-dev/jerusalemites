@@ -9,6 +9,7 @@
     "chat": "node src/cli.js",
     "demo": "node src/demo.js",
     "sim": "node scripts/sim.js",
+    "lead-test": "node scripts/lead-test.js",
     "worker": "node src/worker.js",
     "start": "node src/worker.js",
     "setup": "node scripts/setup-greenapi.js",
