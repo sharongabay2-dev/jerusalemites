@@ -21,8 +21,10 @@ async function runScenario(title, userInputs) {
   const show = (lines) =>
     lines.forEach((l) => {
       const text = typeof l === 'string' ? l : l.text;
-      const btn = l && l.buttons ? '\n   [כפתורים: ' + l.buttons.map((b) => b.title).join(' | ') + ']' : '';
-      console.log('\n🤖 ' + text + btn + '\n');
+      let extra = '';
+      if (l && l.buttons) extra = '\n   [כפתורים: ' + l.buttons.map((b) => b.title).join(' | ') + ']';
+      if (l && l.list) extra = '\n   [רשימה: ' + l.list.rows.map((r) => r.title).join(' | ') + ']';
+      console.log('\n🤖 ' + text + extra + '\n');
     });
 
   show(brain.start());
@@ -56,11 +58,11 @@ async function runScenario(title, userInputs) {
     'הרצל 10, תל אביב',
   ]);
 
-  // 3) מספר עובדים · 11–20 · תמחור + יום מלא (שני שלבי כפתורים)
+  // 3) מספר עובדים · 11–20 · תמחור -> המשך -> יום מלא
   await runScenario('מספר עובדים · 11–20', [
     '2', // מספר עובדים
-    '2', // קבוצה: 11–40
-    '1', // 11–20 -> 550 לעובד
+    '3', // 11 עד 20 -> 550 לעובד
+    '1', // כן, נתקדם
     '1', // יום פנוי
     'מיכל כהן',
     '0521119999',
@@ -68,22 +70,24 @@ async function runScenario(title, userInputs) {
     'ויצמן 5, רעננה',
   ]);
 
-  // 4) מספר עובדים · יותר מ-40 · הצעה אישית
-  await runScenario('מספר עובדים · 40+ · הצעה אישית', [
+  // 4) מספר עובדים · מעל 40 · הצעה אישית (שם+טלפון)
+  await runScenario('מספר עובדים · מעל 40', [
     '2', // מספר עובדים
-    '3', // קבוצה: יותר מ-40
+    '5', // מעל 40
     'רונית מנהלת',
     '0539998888',
-    'ronit@example.com',
   ]);
 
-  // 5) מעבר לשיחה אישית עם שרון
-  await runScenario('מעבר לשיחה אישית', [
-    '1',
-    'אשמח לדבר עם שרון',
-    'רוני',
-    '0547778888',
-    'roni@example.com',
+  // 5) תיק עבודות (אפשרות 3) -> חזרה לפתיחה -> אדם אחד
+  await runScenario('תיק עבודות וחזרה לפתיחה', [
+    '3', // קישורים + חזרה לפתיחה
+    '1', // אדם אחד
+    '1', // סטודיו
+    '2', // סטנדרט
+    '1', // מועד
+    'דן',
+    '0500000000',
+    'dan@example.com',
   ]);
 
   console.log('\n\n✅ סוף ההדגמה.');

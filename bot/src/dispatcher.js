@@ -21,6 +21,10 @@
 
 const { TRIGGER_WORD, STOP_WORD, AUTO_REPLY_ALL } = require('./config/bot');
 const { MemoryStore } = require('./store');
+const messages = require('./messages');
+
+// מילים שהלקוח שולח כדי לעבור למענה אנושי (מילה בודדת בדיוק).
+const HUMAN_WORDS = ['נציג', 'שרון'];
 
 class Dispatcher {
   /**
@@ -63,6 +67,14 @@ class Dispatcher {
     const session = await this.store.get(evt.chatId);
     const active = this.autoReplyAll || !!(session && session.active);
     if (!active) return; // שער ההפעלה הידנית.
+
+    // מעבר למענה אנושי: הלקוח כתב בדיוק "נציג" או "שרון" (מילה בודדת).
+    if (HUMAN_WORDS.includes(text)) {
+      await this._send(evt.chatId, [messages.humanHandoff()]);
+      await this._deactivate(evt.chatId); // הבוט מפסיק להגיב; שרון ממשיך ידנית.
+      return;
+    }
+
     return this._respond(evt.chatId, text, session);
   }
 
@@ -96,20 +108,27 @@ class Dispatcher {
 
   async _send(chatId, lines) {
     for (const line of lines || []) {
-      // תשובה יכולה להיות מחרוזת רגילה או הודעת כפתורים { text, buttons }.
-      const isButtons = line && typeof line === 'object' && Array.isArray(line.buttons);
-      const text = isButtons ? line.text : line;
+      // תשובה יכולה להיות מחרוזת, הודעת כפתורים { text, buttons } או רשימה { text, list }.
+      const isObj = line && typeof line === 'object';
+      const isButtons = isObj && Array.isArray(line.buttons);
+      const isList = isObj && line.list && Array.isArray(line.list.rows);
+      const text = isObj ? line.text : line;
       try {
         if (isButtons && typeof this.greenapi.sendButtons === 'function') {
           await this.greenapi.sendButtons(chatId, text, line.buttons);
+        } else if (isList && typeof this.greenapi.sendList === 'function') {
+          await this.greenapi.sendList(chatId, text, line.list.rows, {
+            buttonText: line.list.buttonText,
+            title: line.list.title,
+          });
         } else {
-          // גיבוי: אם כפתורים לא נתמכים — שולחים את גוף הטקסט הממוספר.
+          // גיבוי: אם אינטראקטיבי לא נתמך — שולחים את גוף הטקסט הממוספר.
           await this.greenapi.sendMessage(chatId, text);
         }
       } catch (e) {
         this.logger.error(`[dispatcher] שליחה נכשלה ל-${chatId}: ${e.message}`);
-        // גיבוי נוסף: אם שליחת הכפתורים נכשלה, ננסה טקסט רגיל.
-        if (isButtons) {
+        // גיבוי: אם שליחת ההודעה האינטראקטיבית נכשלה, ננסה טקסט רגיל.
+        if (isButtons || isList) {
           try {
             await this.greenapi.sendMessage(chatId, text);
           } catch (_) {}

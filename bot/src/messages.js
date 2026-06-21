@@ -1,58 +1,86 @@
 'use strict';
 
 /**
- * כל טקסטי הבוט בעברית — טון מאופק, מקצועי ומכובד.
- * הערה: שרון הוא גבר — כל התייחסות אליו בלשון זכר.
- * הבחירות הן לפי מספרים (הלקוח בוחר); רק פרטי הקשר בסוף מוקלדים.
+ * כל טקסטי הבוט בעברית — גרסה סופית מאושרת. אין לשנות ניסוחים.
+ * הבחירות מוצגות ככפתורים (עד 3) או רשימה אינטראקטיבית (יותר מ-3),
+ * ותמיד גם כטקסט ממוספר בגוף ההודעה כגיבוי.
  */
 
-const { PACKAGES, TEAM, formatPrice } = require('./config/pricing');
+const { PACKAGES, TEAM, formatPrice, getTeamBracket } = require('./config/pricing');
 const business = require('./config/business');
 
-// בונה הודעת כפתורים: גוף טקסט (כולל אפשרויות ממוספרות כגיבוי) + כפתורים.
+const PORTFOLIO = business.portfolioUrl;
+const REVIEWS = business.reviewsUrl;
+
+// ── בוני הודעות אינטראקטיביות ──
 function buttonsMsg(text, buttons) {
   return { text, buttons };
 }
+function listMsg(text, rows, opts = {}) {
+  return { text, list: { buttonText: opts.buttonText || 'לבחירה', title: opts.title || '', rows } };
+}
+// עד 3 → כפתורים | יותר מ-3 → רשימה.
+function choiceMsg(text, options, opts) {
+  return options.length <= 3 ? buttonsMsg(text, options) : listMsg(text, options, opts);
+}
 
 const messages = {
+  // 1 · פתיחה
   greeting() {
     const text =
-      'שלום, וברוכים הבאים לסטודיו של שרון גבאי. אני העוזר הדיגיטלי.\n' +
-      'בכל שלב תוכלו לבקש לדבר עם שרון ישירות.\n' +
-      'מוזמנים להתרשם מעבודות ומחוות דעת של לקוחות:\n' +
-      `פורטפוליו › ${business.portfolioUrl}\n` +
-      `ביקורות › ${business.reviewsUrl}\n\n` +
-      'איזה צילום תרצו?\n' +
-      '1 · צילום לאדם אחד\n' +
-      '2 · צילום למספר עובדים';
+      'שלום ותודה שפנית לסטודיו של שרון גבאי.\n' +
+      'אני העוזר הדיגיטלי של שרון וכאן כדי לעזור לכם לתאם צילומים בקלות.\n' +
+      '(בכל שלב תוכלו לכתוב "נציג" או "שרון" כדי לעבור למענה אנושי).\n\n' +
+      'עבור מי מיועדים הצילומים?\n' +
+      '1 · אדם אחד (פורטריט עסקי / תדמית)\n' +
+      '2 · מספר עובדים / הנהלה\n' +
+      '3 · צפייה בתיק עבודות וביקורות';
     return buttonsMsg(text, [
-      { id: '1', title: 'צילום לאדם אחד' },
-      { id: '2', title: 'צילום למספר עובדים' },
+      { id: '1', title: 'אדם אחד' },
+      { id: '2', title: 'מספר עובדים / הנהלה' },
+      { id: '3', title: 'תיק עבודות וביקורות' },
     ]);
   },
 
+  portfolioLinks() {
+    return `פורטפוליו: ${PORTFOLIO} | ביקורות: ${REVIEWS}`;
+  },
+
+  // 2 · אדם אחד → מיקום
   askLocation() {
     const text =
-      'היכן נוח לכם לצלם?\n' +
-      `1 · בסטודיו של שרון, ב${business.studioShortLocation}\n` +
-      '2 · בבית העסק — שרון מגיע ומקים סטודיו מלא אצלכם (תוצאה זהה; התעריף גבוה יותר)';
+      'איפה תעדיפו לקיים את הצילומים?\n' +
+      '1 · בסטודיו של שרון במושב נס הרים\n' +
+      '2 · אצלכם בעסק (שרון מגיע אליכם ומקים סטודיו מקצועי ומלא במקום)';
     return buttonsMsg(text, [
-      { id: '1', title: `בסטודיו ב${business.studioShortLocation}` },
-      { id: '2', title: 'אצלכם בבית העסק' },
+      { id: '1', title: 'בסטודיו בנס הרים' },
+      { id: '2', title: 'אצלכם בעסק' },
     ]);
   },
 
+  // 3 · חבילות
   presentPackages(location) {
-    const loc = PACKAGES[location];
-    const t = loc.tiers;
-    const includes = loc.includes.join(', ');
+    const t = PACKAGES[location].tiers;
+    const header =
+      location === 'studio'
+        ? 'אלו חבילות הצילום שלנו בסטודיו. לפני שתבחרו, מוזמנים להציץ בפורטפוליו ממש כאן: ' +
+          PORTFOLIO +
+          '\n\nכל חבילה כוללת שיחת אפיון מדויקת, קבלת כל התמונות המקוריות שצולמו, ועריכה אמנותית מתקדמת של התמונות הנבחרות.'
+        : 'אלו חבילות הצילום אצלכם במשרד. לפני שתבחרו, מוזמנים להציץ בפורטפוליו ממש כאן: ' +
+          PORTFOLIO +
+          '\n\nהתעריף כולל הגעה, הקמת סטודיו נייד מלא, שיחת אפיון, קבלת כל התמונות המקוריות שצולמו, ועריכה אמנותית מתקדמת של התמונות הנבחרות.';
+
+    const line = (i, tier, rec) =>
+      `${i} · ${tier.label} — ${formatPrice(tier.price)} (${tier.photos} תמונות נבחרות, ${tier.sets} סטים)${rec ? ' · מומלצת' : ''}`;
     const text =
-      `החבילות שלנו ${loc.label}:\n` +
-      `1 · בסיס — ${formatPrice(t.base.price)} (${t.base.photos} תמונות, ${t.base.sets} סטים)\n` +
-      `2 · סטנדרט — ${formatPrice(t.standard.price)} (${t.standard.photos} תמונות, ${t.standard.sets} סטים) — מומלצת\n` +
-      `3 · פרימיום — ${formatPrice(t.premium.price)} (${t.premium.photos} תמונות, ${t.premium.sets} סטים)\n` +
-      `כולל: ${includes}.\n\n` +
-      'איזו חבילה מתאימה לכם? (1 / 2 / 3)';
+      header +
+      '\n' +
+      line(1, t.base, false) +
+      '\n' +
+      line(2, t.standard, true) +
+      '\n' +
+      line(3, t.premium, false);
+
     return buttonsMsg(text, [
       { id: '1', title: `בסיס · ${formatPrice(t.base.price)}` },
       { id: '2', title: `סטנדרט · ${formatPrice(t.standard.price)}` },
@@ -60,144 +88,134 @@ const messages = {
     ]);
   },
 
-  // שאלת מספר העובדים בשני שלבי כפתורים (עד 3 כל אחד) כדי שלא יצטרכו להקליד.
-  askEmployeesGroup() {
-    const text = 'כמה עובדים?\n1 · עד 10\n2 · 11–40\n3 · יותר מ-40';
-    return buttonsMsg(text, [
-      { id: '1', title: 'עד 10 עובדים' },
-      { id: '2', title: '11–40 עובדים' },
-      { id: '3', title: 'יותר מ-40' },
-    ]);
-  },
-  askEmployeesSubSmall() {
-    const text = 'כמה עובדים?\n1 · עד 5\n2 · 6–10';
-    return buttonsMsg(text, [
-      { id: '1', title: 'עד 5 עובדים' },
-      { id: '2', title: '6–10 עובדים' },
-    ]);
-  },
-  askEmployeesSubMid() {
-    const text = 'כמה עובדים?\n1 · 11–20\n2 · 21–40';
-    return buttonsMsg(text, [
-      { id: '1', title: '11–20 עובדים' },
-      { id: '2', title: '21–40 עובדים' },
-    ]);
-  },
-
-  teamPriced(bracket) {
-    return (
-      `לצילום ${bracket.label} בבית העסק:\n` +
-      `${formatPrice(bracket.perPerson)} לעובד, בתוספת ${formatPrice(TEAM.arrivalFee)} דמי הגעה והקמה.\n` +
-      'הסכום הסופי ייקבע לפי מספר העובדים בפועל, ושרון יאשר אותו אתכם.'
-    );
-  },
-
-  teamCustom() {
-    return (
-      'לצוות של יותר מ-40 עובדים שרון מתאים הצעה אישית.\n' +
-      'נשמח לכמה פרטים ושרון יחזור אליכם עם הצעה מותאמת.'
-    );
-  },
-
-  presentStudioSlots(slots) {
+  // 4 · בחירת מועד
+  presentSlots(slots) {
     if (!slots.length) return messages.noSlots();
-    const list = slots
-      .map((s, i) => `${i + 1} · ${s.dateLabel}, בשעה ${s.startLabel}–${s.endLabel}`)
+    const body = slots
+      .map((s, i) =>
+        s.fullDay
+          ? `${i + 1} · ${s.dateLabel}`
+          : `${i + 1} · ${s.dateLabel}, בשעה ${s.startLabel}–${s.endLabel}`
+      )
       .join('\n');
-    return (
-      'מצוין. אלה המועדים הפנויים הקרובים (ימים א׳–ה׳, בין 9:30 ל-13:30):\n' +
-      list +
-      '\n\nאיזה מועד מתאים לכם? (בחרו מספר)'
-    );
-  },
-
-  presentOnsiteDays(days) {
-    if (!days.length) return messages.noSlots();
-    const list = days.map((d, i) => `${i + 1} · ${d.dateLabel}`).join('\n');
-    return (
-      'צילום בבית העסק שומר יום מלא ביומן של שרון. אלה הימים הפנויים הקרובים (ימים א׳–ה׳):\n' +
-      list +
-      '\n\nאיזה יום מתאים לכם? (בחרו מספר)'
-    );
+    const text = 'מצוין. הנה המועדים הפנויים הקרובים:\n' + body;
+    const options = slots.map((s, i) => ({
+      id: String(i + 1),
+      title: shortSlotLabel(s),
+    }));
+    return choiceMsg(text, options, { buttonText: 'בחירת מועד' });
   },
 
   noSlots() {
     return 'כרגע לא נמצא מועד פנוי קרוב ביומן. אעביר את הפנייה לשרון והוא יתאם אתכם מועד באופן אישי.';
   },
 
+  // 5 · פרטי קשר (הזמנה מלאה)
   askName() {
-    return 'מצוין. נסיים בכמה פרטים ליצירת קשר. מה השם המלא?';
+    return 'מעולה! כדי לשריין את המועד, אצטרך רק כמה פרטים אחרונים:\nמה השם המלא שלכם?';
   },
   askPhone() {
-    return 'מספר טלפון ליצירת קשר?';
+    return 'מה מספר הטלפון לחזרה?';
   },
   askEmail() {
-    return 'כתובת אימייל (לשליחת זימון ליומן)?';
+    return 'מה כתובת האימייל שלכם? (לשם יישלח זימון ליומן)';
   },
   askAddress() {
-    return 'מה הכתובת המלאה שבה יתקיים הצילום?';
+    return 'מה הכתובת המלאה אליה שרון יגיע?';
   },
 
-  // אישור הזמנה ללקוח.
+  // 6 · אישור
   confirm(lead) {
-    const lines = [];
-    lines.push(`תודה, ${lead.name}. ההזמנה נקלטה.`);
-
-    const b = lead.booking;
-    const when = b.fullDay
-      ? `${b.dateLabel} · יום מלא`
-      : `${b.dateLabel} · ${b.startLabel}–${b.endLabel}`;
-    lines.push(`${when} · ${priceLine(lead)}`);
-
-    const place =
-      lead.location === 'onsite' ? lead.address : business.studioAddress;
-    lines.push(`מיקום: ${place}`);
-
-    lines.push('מדיניות ביטולים:');
-    for (const p of business.cancellationPolicy) lines.push(`· ${p}`);
-
-    lines.push('שרון יחזור אליכם לאישור ולשיחת אפיון קצרה לפני הצילום.');
-    return lines.join('\n');
-  },
-
-  teamCustomDone(name) {
+    const place = lead.location === 'onsite' ? lead.address : business.studioAddress;
     return (
-      `תודה, ${name}. העברתי את הפרטים לשרון, והוא יחזור אליכם עם הצעה אישית מותאמת.`
+      `תודה רבה, ${lead.name}! הבקשה נקלטה בהצלחה.\n` +
+      `שרינו עבורכם צילומים בתאריך ${whenText(lead.booking)} במסלול ${packageLabel(lead)}.\n` +
+      `מיקום: ${place}.\n\n` +
+      'שרון יצור איתכם קשר בהקדם לשיחת אפיון קצרה לקראת הצילומים, ובה נעבור גם על הסדר התשלום ומדיניות ביטולים.\n' +
+      'נתראה בקרוב!'
     );
   },
 
-  handoff(name) {
-    const who = name ? `${name}, ` : '';
-    return `${who}בהחלט. נשמח לכמה פרטים, ושרון ייצור אתכם קשר באופן אישי בהקדם.`;
+  // 7 · כמות עובדים (רשימה — 5 אפשרויות)
+  askEmployees() {
+    const text =
+      'כמה אנשי צוות או הנהלה תרצו לצלם?\n' +
+      '1 · עד 5 עובדים\n' +
+      '2 · 6 עד 10 עובדים\n' +
+      '3 · 11 עד 20 עובדים\n' +
+      '4 · 21 עד 40 עובדים\n' +
+      '5 · מעל 40 עובדים';
+    const ids = ['b5', 'b10', 'b20', 'b40', 'b41'];
+    const rows = ids.map((id, i) => ({ id: String(i + 1), title: getTeamBracket(id).label }));
+    return listMsg(text, rows, { buttonText: 'בחירת כמות' });
   },
 
-  handoffDone(name) {
-    return `תודה, ${name}. העברתי את הפרטים לשרון, והוא יחזור אליכם בהקדם.`;
+  // 8 · הצגת מחיר (עד 40)
+  teamPrice(bracket) {
+    const text =
+      `עבור ${bracket.range} עובדים, התעריף הוא ${bracket.perPerson} ₪ לכל עובד, ` +
+      `בתוספת ${formatPrice(TEAM.arrivalFee)} עלות הגעה והקמת סטודיו מקצועי ומלא אצלכם במשרד.\n` +
+      'האם תרצו להמשיך לבחירת תאריך ליום צילום?\n' +
+      '1 · כן, בואו נתקדם\n' +
+      '2 · אשמח ששרון יחזור אליי';
+    return buttonsMsg(text, [
+      { id: '1', title: 'כן, בואו נתקדם' },
+      { id: '2', title: 'שרון יחזור אליי' },
+    ]);
+  },
+
+  // 9 · צוות מעל 40
+  teamCustom() {
+    return (
+      'לצוות בסדר גודל כזה, שרון בונה הצעת מחיר ויום צילומים מותאם אישית.\n' +
+      'אשמח לקחת את הפרטים שלכם ושרון יחזור אליכם בהקדם.'
+    );
+  },
+
+  // איסוף לחזרה (שם + טלפון בלבד)
+  askCallbackName() {
+    return 'כדי ששרון יחזור אליכם, אשאיר לו שם וטלפון:\nמה השם המלא שלכם?';
+  },
+  askCallbackPhone() {
+    return 'מה מספר הטלפון?';
+  },
+  callbackDone() {
+    return 'תודה! העברתי את הפרטים לשרון, והוא יחזור אליכם בהקדם.';
+  },
+
+  // מעבר למענה אנושי
+  humanHandoff() {
+    return 'אעביר את פנייתכם לשרון, והוא יחזור אליכם בהקדם.';
   },
 
   bookingFailed() {
     return 'מתנצל — נראה שהמועד נתפס בדיוק כעת. העברתי את הפנייה לשרון, והוא יתאם אתכם מועד חלופי באופן אישי.';
   },
-
   notUnderstood() {
     return 'סליחה, לא הבנתי. אפשר לבחור אחת מהאפשרויות לפי המספר.';
   },
-
   goodbye() {
-    return 'תודה רבה, ויום טוב. אני כאן לכל שאלה נוספת.';
+    return 'תודה רבה, ויום טוב.';
   },
 };
 
-// שורת החבילה/מחיר באישור — שונה בין אדם אחד לצוות.
-function priceLine(lead) {
-  if (lead.audience === 'team' && lead.team) {
-    return (
-      `${lead.team.label} — ${formatPrice(lead.team.perPerson)} לעובד + ` +
-      `${formatPrice(TEAM.arrivalFee)} הגעה והקמה`
-    );
-  }
-  const tier = lead.tier;
-  return `חבילת ${tier.label} ${PACKAGES[lead.location].label} — ${formatPrice(tier.price)}`;
+// ── עזרי תצוגה ──
+function shortSlotLabel(s) {
+  // תווית קצרה לכפתור/רשימה (עד 25 תווים).
+  const dm = s.dateLabel.replace('יום ', '').replace(/,.*?(\d{2}\/\d{2})/, ' $1'); // "ראשון 21/06"
+  return s.fullDay ? dm : `${dm} ${s.startLabel}`;
+}
+
+function whenText(booking) {
+  if (!booking) return '';
+  return booking.fullDay
+    ? `${booking.dateLabel} (יום מלא)`
+    : `${booking.dateLabel} בשעה ${booking.startLabel}–${booking.endLabel}`;
+}
+
+function packageLabel(lead) {
+  if (lead.audience === 'team' && lead.team) return `צוות (${lead.team.label})`;
+  return lead.tier ? lead.tier.label : '';
 }
 
 module.exports = messages;

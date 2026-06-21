@@ -1,23 +1,23 @@
 'use strict';
 
 /**
- * "המוח" של הבוט — מנהל את מהלך השיחה כמכונת מצבים.
- * עצמאי מהערוץ (וואטסאפ/טרמינל). מופע אחד = שיחה אחת.
- *
- * receive() הוא אסינכרוני כי קריאת זמינות/קביעה ביומן (גוגל) היא רשתית.
- * שמירה/שחזור מצב: toState()/loadState() (לאחסון מתמיד בין הודעות).
+ * "המוח" של הבוט — מכונת מצבים לזרימת השיחה הסופית.
+ * עצמאי מהערוץ. receive() אסינכרוני (יומן גוגל רשתי). מצב נשמר/משוחזר.
  *
  * מהלך:
- *  פתיחה -> קהל (אדם אחד / מספר עובדים)
- *  אדם אחד -> מיקום (סטודיו/בית עסק) -> חבילה -> מועד -> פרטי קשר -> אישור
- *  מספר עובדים -> כמות -> (מתומחר: מחיר + מועד יום מלא | 40+: הצעה אישית) -> פרטי קשר
+ *  פתיחה -> קהל (אדם אחד / מספר עובדים / תיק עבודות)
+ *  אדם אחד -> מיקום -> חבילה -> מועד -> פרטי קשר מלאים -> אישור + אירוע יומן
+ *  מספר עובדים -> כמות -> (עד 40: מחיר -> אישור המשך -> מועד -> פרטים -> אישור |
+ *                          מעל 40: הצעה אישית -> איסוף לחזרה)
+ *  "שרון יחזור אליי" -> איסוף לחזרה (שם + טלפון בלבד)
+ *
+ * מעבר למענה אנושי ("נציג"/"שרון") מטופל ב-dispatcher, לא כאן.
  */
 
 const messages = require('./messages');
 const { getTier, getTeamBracket, formatPrice, TEAM, PACKAGES } = require('./config/pricing');
 const business = require('./config/business');
 
-// ── עוזרי קלט ──
 function norm(text) {
   return String(text || '').trim();
 }
@@ -41,14 +41,18 @@ function reviveSlot(slot) {
   return slot;
 }
 
-const HANDOFF_WORDS = ['שרון', 'טלפון', 'להתקשר', 'לדבר', 'נציג', 'אנושי', 'שיחה אישית'];
-
-// שדות קשר ושאלותיהם.
-const CONTACT_QUESTIONS = {
-  name: () => messages.askName(),
-  phone: () => messages.askPhone(),
-  email: () => messages.askEmail(),
-  address: () => messages.askAddress(),
+// שאלות פרטי הקשר לפי מטרה.
+const QUESTIONS = {
+  book: {
+    name: () => messages.askName(),
+    phone: () => messages.askPhone(),
+    email: () => messages.askEmail(),
+    address: () => messages.askAddress(),
+  },
+  callback: {
+    name: () => messages.askCallbackName(),
+    phone: () => messages.askCallbackPhone(),
+  },
 };
 
 class Brain {
@@ -61,8 +65,8 @@ class Brain {
     this.lead = {
       audience: null, // 'single' | 'team'
       location: null, // 'studio' | 'onsite'
-      tier: null, // {id,label,price,...}
-      team: null, // {id,label,perPerson}
+      tier: null,
+      team: null,
       selectedSlot: null,
       booking: null,
       name: null,
@@ -73,7 +77,7 @@ class Brain {
     };
     this.contactFields = [];
     this.contactIndex = 0;
-    this.contactPurpose = null; // 'book' | 'handoff' | 'teamCustom'
+    this.contactPurpose = null; // 'book' | 'callback'
   }
 
   isDone() {
@@ -89,7 +93,6 @@ class Brain {
       contactPurpose: this.contactPurpose,
     };
   }
-
   loadState(s) {
     if (!s) return this;
     this.step = s.step || 'audience';
@@ -108,25 +111,19 @@ class Brain {
 
   async receive(text) {
     if (this.step === 'done') return [messages.goodbye()];
-
-    // בקשה לדבר עם שרון — זמינה בשלבי הבחירה (לא בזמן הקלדת פרטים).
-    if (this.step !== 'contact' && this._isHandoffIntent(text)) {
-      return this._enterHandoff('הלקוח ביקש לדבר עם שרון');
-    }
-
     switch (this.step) {
       case 'audience': return this._handleAudience(text);
       case 'location': return this._handleLocation(text);
       case 'package': return this._handlePackage(text);
       case 'employees': return this._handleEmployees(text);
-      case 'employees_sub': return this._handleEmployeesSub(text);
+      case 'team_confirm': return this._handleTeamConfirm(text);
       case 'schedule': return this._handleSchedule(text);
       case 'contact': return this._handleContact(text);
       default: return [messages.notUnderstood()];
     }
   }
 
-  // ── קהל ──
+  // 1 · קהל
   _handleAudience(text) {
     const n = pickNumber(text);
     if (n === 1) {
@@ -136,14 +133,18 @@ class Brain {
     }
     if (n === 2) {
       this.lead.audience = 'team';
-      this.lead.location = 'onsite'; // צוות תמיד בבית העסק
+      this.lead.location = 'onsite';
       this.step = 'employees';
-      return [messages.askEmployeesGroup()];
+      return [messages.askEmployees()];
+    }
+    if (n === 3) {
+      // תיק עבודות וביקורות — שולחים קישורים וחוזרים לשאלת הפתיחה.
+      return [messages.portfolioLinks(), messages.greeting()];
     }
     return [messages.notUnderstood()];
   }
 
-  // ── מיקום (אדם אחד) ──
+  // 2 · מיקום (אדם אחד)
   _handleLocation(text) {
     const n = pickNumber(text);
     if (n === 1) this.lead.location = 'studio';
@@ -153,71 +154,55 @@ class Brain {
     return [messages.presentPackages(this.lead.location)];
   }
 
-  // ── חבילה (אדם אחד) ──
+  // 3 · חבילה (אדם אחד)
   async _handlePackage(text) {
-    const n = pickNumber(text);
     const map = { 1: 'base', 2: 'standard', 3: 'premium' };
-    const tierId = map[n];
+    const tierId = map[pickNumber(text)];
     if (!tierId) return [messages.notUnderstood()];
     this.lead.tier = getTier(this.lead.location, tierId);
     return this._proposeSchedule();
   }
 
-  // ── כמות עובדים (צוות) — שלב א': קבוצה ──
+  // 7 · כמות עובדים
   async _handleEmployees(text) {
+    const map = { 1: 'b5', 2: 'b10', 3: 'b20', 4: 'b40', 5: 'b41' };
+    const bracket = getTeamBracket(map[pickNumber(text)]);
+    if (!bracket) return [messages.notUnderstood()];
+    this.lead.team = bracket;
+
+    if (bracket.perPerson === null) {
+      // 9 · מעל 40 — הצעה אישית, איסוף לחזרה.
+      this.lead.outcome = 'צוות מעל 40 — הצעה אישית; שרון יחזור אל הלקוח';
+      return this._startContact(['name', 'phone'], 'callback', [messages.teamCustom()]);
+    }
+    // 8 · הצגת מחיר ואישור המשך.
+    this.step = 'team_confirm';
+    return [messages.teamPrice(bracket)];
+  }
+
+  // 8 · המשך / חזרה
+  async _handleTeamConfirm(text) {
     const n = pickNumber(text);
-    if (n === 1) {
-      this.step = 'employees_sub';
-      this.lead._empGroup = 'small'; // עד 10
-      return [messages.askEmployeesSubSmall()];
-    }
+    if (n === 1) return this._proposeSchedule(); // יום מלא
     if (n === 2) {
-      this.step = 'employees_sub';
-      this.lead._empGroup = 'mid'; // 11–40
-      return [messages.askEmployeesSubMid()];
-    }
-    if (n === 3) {
-      // יותר מ-40 — הצעה אישית, ללא תמחור/קביעה אוטומטיים.
-      this.lead.team = getTeamBracket('b41');
-      this.lead.outcome = 'צוות 40+ — מתואמת הצעה אישית של שרון';
-      return this._startContact(['name', 'phone', 'email'], 'teamCustom', [messages.teamCustom()]);
+      this.lead.outcome = 'צוות — הלקוח ביקש ששרון יחזור אליו';
+      return this._startContact(['name', 'phone'], 'callback');
     }
     return [messages.notUnderstood()];
   }
 
-  // ── כמות עובדים — שלב ב': פירוט המדרגה ──
-  async _handleEmployeesSub(text) {
-    const n = pickNumber(text);
-    const groups = {
-      small: { 1: 'b5', 2: 'b10' },
-      mid: { 1: 'b20', 2: 'b40' },
-    };
-    const id = (groups[this.lead._empGroup] || {})[n];
-    const bracket = getTeamBracket(id);
-    if (!bracket) return [messages.notUnderstood()];
-    this.lead.team = bracket;
-    const sched = await this._proposeSchedule();
-    return [messages.teamPriced(bracket), ...sched];
-  }
-
-  // ── הצעת מועדים לפי כל החוקים ──
+  // 4 · הצעת מועדים מהיומן
   async _proposeSchedule() {
     try {
-      let proposed;
-      if (this.lead.location === 'onsite') {
-        proposed = await this.calendar.proposeOnsiteDays(this.lead.tier ? this.lead.tier.id : 'base');
-      } else {
-        proposed = await this.calendar.proposeStudioSlots(this.lead.tier.id);
-      }
-      if (!proposed.length) return this._noSlotsFallback();
-      // נשמר ב-lead כדי לשרוד שחזור מצב בין הודעות.
-      this.lead._proposed = proposed;
-      this.step = 'schedule';
-      return [
+      const tierId = this.lead.tier ? this.lead.tier.id : 'base';
+      const proposed =
         this.lead.location === 'onsite'
-          ? messages.presentOnsiteDays(proposed)
-          : messages.presentStudioSlots(proposed),
-      ];
+          ? await this.calendar.proposeOnsiteDays(tierId)
+          : await this.calendar.proposeStudioSlots(tierId);
+      if (!proposed.length) return this._noSlotsFallback();
+      this.lead._proposed = proposed; // נשמר לשרידות מצב
+      this.step = 'schedule';
+      return [messages.presentSlots(proposed)];
     } catch (e) {
       return this._noSlotsFallback(e);
     }
@@ -231,24 +216,24 @@ class Brain {
   }
 
   _handleSchedule(text) {
-    // המועדים המוצעים נשמרו ב-lead — משחזרים תאריכים אם הגיעו כמחרוזות.
     const proposed = (this.lead._proposed || []).map(reviveSlot);
     const n = pickNumber(text);
     if (!n || n < 1 || n > proposed.length) return [messages.notUnderstood()];
     this.lead.selectedSlot = proposed[n - 1];
-    const fields = this.lead.location === 'onsite'
-      ? ['name', 'phone', 'email', 'address']
-      : ['name', 'phone', 'email'];
+    const fields =
+      this.lead.location === 'onsite'
+        ? ['name', 'phone', 'email', 'address']
+        : ['name', 'phone', 'email'];
     return this._startContact(fields, 'book');
   }
 
-  // ── איסוף פרטי קשר (מוקלד) ──
+  // 5 · איסוף פרטים
   _startContact(fields, purpose, prefix = []) {
     this.contactFields = fields;
     this.contactIndex = 0;
     this.contactPurpose = purpose;
     this.step = 'contact';
-    return [...prefix, CONTACT_QUESTIONS[fields[0]]()];
+    return [...prefix, QUESTIONS[purpose][fields[0]]()];
   }
 
   async _handleContact(text) {
@@ -260,34 +245,27 @@ class Brain {
     this.contactIndex++;
 
     if (this.contactIndex < this.contactFields.length) {
-      return [CONTACT_QUESTIONS[this.contactFields[this.contactIndex]]()];
+      return [QUESTIONS[this.contactPurpose][this.contactFields[this.contactIndex]]()];
     }
 
-    // כל הפרטים נאספו.
     if (this.contactPurpose === 'book') return this._finalizeBooking();
 
-    // handoff / teamCustom — מיידעים את שרון.
-    if (!this.lead.outcome) this.lead.outcome = 'מתואמת שיחה אישית עם שרון';
+    // איסוף לחזרה — מיידעים את שרון.
+    if (!this.lead.outcome) this.lead.outcome = 'איסוף לחזרה — שרון יחזור אל הלקוח';
     this.notify(this.lead);
     this.step = 'done';
-    return [
-      this.contactPurpose === 'teamCustom'
-        ? messages.teamCustomDone(this.lead.name)
-        : messages.handoffDone(this.lead.name),
-    ];
+    return [messages.callbackDone()];
   }
 
-  // ── קביעת מועד ביומן + התראה לשרון ──
+  // 6 · קביעת מועד ביומן + אישור
   async _finalizeBooking() {
     const slot = this.lead.selectedSlot;
-    const info = this._eventInfo();
     let result;
     try {
-      result = await this.calendar.book(slot, info);
+      result = await this.calendar.book(slot, this._eventInfo());
     } catch (e) {
       result = { ok: false, reason: e.message };
     }
-
     if (!result || !result.ok) {
       this.lead.outcome = 'קביעה ביומן נכשלה — הופנה לתיאום אישי' +
         (result && result.reason ? ` (${result.reason})` : '');
@@ -295,7 +273,6 @@ class Brain {
       this.step = 'done';
       return [messages.bookingFailed()];
     }
-
     this.lead.booking = {
       dateKey: slot.dateKey,
       dateLabel: slot.dateLabel,
@@ -314,32 +291,21 @@ class Brain {
     const l = this.lead;
     let priceText;
     if (l.audience === 'team' && l.team) {
-      priceText = `${l.team.label} — ${formatPrice(l.team.perPerson)} לעובד + ${formatPrice(TEAM.arrivalFee)} הגעה והקמה`;
+      priceText = `צוות (${l.team.label}) — ${formatPrice(l.team.perPerson)} לעובד + ${formatPrice(TEAM.arrivalFee)} הגעה והקמה`;
     } else {
       priceText = `חבילת ${l.tier.label} ${PACKAGES[l.location].label} — ${formatPrice(l.tier.price)}`;
     }
     const location = l.location === 'onsite' ? l.address : business.studioAddress;
-    const title = l.audience === 'team'
-      ? `צילום צוות — ${l.name}`
-      : `צילום ${l.tier.label} — ${l.name}`;
+    const title = l.audience === 'team' ? `צילום צוות — ${l.name}` : `צילום ${l.tier.label} — ${l.name}`;
     const description = [
-      `סוג: ${l.audience === 'team' ? 'צוות עובדים' : 'אדם אחד'}`,
+      `סוג: ${l.audience === 'team' ? 'מספר עובדים' : 'אדם אחד'}`,
       priceText,
       `שם: ${l.name}`,
       `טלפון: ${l.phone}`,
-      `אימייל: ${l.email}`,
+      l.email ? `אימייל: ${l.email}` : null,
       l.address ? `כתובת: ${l.address}` : null,
     ].filter(Boolean).join('\n');
     return { title, description, location, attendeeEmail: l.email };
-  }
-
-  // ── מעבר לשרון ──
-  _isHandoffIntent(text) {
-    return HANDOFF_WORDS.some((w) => norm(text).includes(w));
-  }
-  _enterHandoff(reason) {
-    this.lead.outcome = this.lead.outcome || reason;
-    return this._startContact(['name', 'phone', 'email'], 'handoff', [messages.handoff(this.lead.name)]);
   }
 }
 

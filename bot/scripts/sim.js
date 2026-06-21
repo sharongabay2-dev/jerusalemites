@@ -26,6 +26,11 @@ function fakeGreen() {
         `\n🤖 בוט → ${chatId}:\n${body}\n   [כפתורים: ${buttons.map((b) => b.title).join(' | ')}]`
       );
     },
+    async sendList(chatId, body, rows) {
+      console.log(
+        `\n🤖 בוט → ${chatId}:\n${body}\n   [רשימה: ${rows.map((r) => r.title).join(' | ')}]`
+      );
+    },
   };
 }
 
@@ -86,6 +91,12 @@ async function run() {
     console.log('🧑 לקוח: ' + msg);
     await dispatcher.onEvent(fromCustomer(CUSTOMER, msg));
   }
+
+  show('4ב) מענה אנושי — לקוח אחר כותב "נציג"');
+  const OTHER = '972500000002@c.us';
+  await dispatcher.onEvent(fromSharon(OTHER, 'בוט')); // הפעלה בשיחה אחרת
+  console.log('🧑 לקוח: נציג');
+  await dispatcher.onEvent(fromCustomer(OTHER, 'נציג'));
 
   show('5) שרון שולח "סיום" — השליטה חוזרת אליו');
   console.log('📱 שרון (מהמכשיר): סיום');

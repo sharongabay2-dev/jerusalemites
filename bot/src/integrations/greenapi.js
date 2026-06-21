@@ -88,6 +88,34 @@ async function sendButtons(chatId, body, buttons) {
   return callApi('sendInteractiveButtonsReply', { body: payload });
 }
 
+/**
+ * שליחת רשימה אינטראקטיבית (ליותר מ-3 אפשרויות).
+ * @param {string} chatId
+ * @param {string} body טקסט השאלה (כולל אפשרויות ממוספרות כגיבוי).
+ * @param {Array<{id:string,title:string,description?:string}>} rows
+ * @param {object} [opts] { buttonText, title }
+ */
+async function sendList(chatId, body, rows, opts = {}) {
+  const payload = {
+    chatId,
+    message: body,
+    buttonText: (opts.buttonText || 'בחירה').slice(0, 20),
+    title: opts.title || '',
+    sections: [
+      {
+        title: opts.title || ' ',
+        rows: rows.map((r) => ({
+          rowId: String(r.id),
+          title: String(r.title).slice(0, 24),
+          description: r.description ? String(r.description) : '',
+        })),
+      },
+    ],
+  };
+  const method = process.env.GREENAPI_LIST_METHOD || 'sendListMessage';
+  return callApi(method, { body: payload });
+}
+
 // ── הגדרות החיבור (כולל הפעלת התראות יוצאות + webhook) ──
 async function getSettings() {
   return callApi('getSettings', { httpMethod: 'GET' });
@@ -115,17 +143,19 @@ let _loggedInteractive = false;
 
 // סורק במבנה התשובה אחרי מזהה הכפתור שנבחר (מכסה כמה צורות אפשריות של Green API).
 function findSelectedButtonId(messageData) {
+  const lrm = messageData.listResponseMessage || {};
   const candidates = [
     messageData.buttonsResponseMessage,
     messageData.templateButtonReplyMessage,
     messageData.interactiveButtonsReply,
     messageData.interactiveButtons,
-    messageData.listResponseMessage,
+    lrm,
+    lrm.singleSelectReply, // רשימה: לעיתים ה-rowId מקונן כאן
   ];
   for (const c of candidates) {
     if (!c || typeof c !== 'object') continue;
     const id =
-      c.selectedButtonId || c.selectedId || c.buttonId || c.selectedRowId || c.id;
+      c.selectedButtonId || c.selectedId || c.buttonId || c.selectedRowId || c.rowId || c.id;
     if (id != null && String(id).trim() !== '') return String(id).trim();
   }
   return null;
@@ -193,6 +223,7 @@ module.exports = {
   matchesToken: (k) => !!API_TOKEN && k === API_TOKEN,
   sendMessage,
   sendButtons,
+  sendList,
   getSettings,
   setSettings,
   receiveNotification,

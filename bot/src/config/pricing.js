@@ -34,11 +34,11 @@ const TEAM = {
   arrivalFee: 1500, // דמי הגעה והקמה — נוספים תמיד.
   // מדרגות לפי מספר העובדים. perPerson=null => הצעה אישית (לא מתומחר אוטומטית).
   brackets: [
-    { id: 'b5', label: 'עד 5 עובדים', perPerson: 790 },
-    { id: 'b10', label: '6–10 עובדים', perPerson: 650 },
-    { id: 'b20', label: '11–20 עובדים', perPerson: 550 },
-    { id: 'b40', label: '21–40 עובדים', perPerson: 450 },
-    { id: 'b41', label: 'יותר מ-40 עובדים', perPerson: null },
+    { id: 'b5', label: 'עד 5 עובדים', range: 'עד 5', perPerson: 790 },
+    { id: 'b10', label: '6 עד 10 עובדים', range: '6 עד 10', perPerson: 650 },
+    { id: 'b20', label: '11 עד 20 עובדים', range: '11 עד 20', perPerson: 550 },
+    { id: 'b40', label: '21 עד 40 עובדים', range: '21 עד 40', perPerson: 450 },
+    { id: 'b41', label: 'מעל 40 עובדים', range: 'מעל 40', perPerson: null },
   ],
 };
 
