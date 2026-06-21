@@ -70,7 +70,7 @@ module.exports = async function handler(req, res) {
       const msgs = await greenapi.lastIncomingMessages(minutes);
       const byChat = new Map();
       for (const m of msgs || []) {
-        if (!m.chatId) continue;
+        if (!m.chatId || !m.chatId.endsWith('@c.us')) continue; // שיחות אישיות בלבד (לא קבוצות)
         const prev = byChat.get(m.chatId);
         if (!prev || (m.timestamp || 0) >= (prev.timestamp || 0)) byChat.set(m.chatId, m);
       }
