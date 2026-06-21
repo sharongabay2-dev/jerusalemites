@@ -57,6 +57,9 @@ class Dispatcher {
     const text = (evt.text || '').trim();
 
     if (evt.direction === 'outgoing') {
+      this.logger.log(
+        `[dispatcher][diag] יוצאת chat=${evt.chatId} viaApi=${evt.viaApi} text=${JSON.stringify(text)} (TRIGGER=${text === TRIGGER_WORD} STOP=${text === STOP_WORD})`
+      );
       // הודעות שהבוט עצמו שלח — להתעלם (מניעת לולאה).
       if (evt.viaApi) return;
       // הודעה יוצאת מהמכשיר של שרון = פקודת שליטה ידנית.
@@ -70,7 +73,7 @@ class Dispatcher {
     const active = this.autoReplyAll || !!(session && session.active);
     // --- אבחון זמני ---
     this.logger.log(
-      `[dispatcher][diag] נכנסת chat=${evt.chatId} active=${active} hasLastOptions=${!!(session && session.lastOptions)} text=${JSON.stringify(text)}`
+      `[dispatcher][diag] נכנסת chat=${evt.chatId} active=${active} sessionStep=${session && session.brain && session.brain.step} text=${JSON.stringify(text)}`
     );
     if (!active) return; // שער ההפעלה הידנית.
 
@@ -106,7 +109,11 @@ class Dispatcher {
     // שיחה קיימת — משחזרים את המוח מהמצב השמור וממשיכים.
     if (session && session.brain) {
       const brain = this.makeBrain().loadState(session.brain);
+      const beforeStep = brain.step;
       const replies = await brain.receive(text); // ה-Brain ממיר תווית-כפתור למספר בעצמו
+      this.logger.log(
+        `[dispatcher][diag] עיבוד chat=${chatId} text=${JSON.stringify(text)} step ${beforeStep} -> ${brain.step}`
+      );
       await this.store.set(chatId, { active: true, brain: brain.toState() });
       return this._send(chatId, replies);
     }

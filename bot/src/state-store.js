@@ -55,16 +55,29 @@ class UpstashStore {
     this.redis = new Redis({ url, token });
   }
   async get(key) {
+    const k = PREFIX + key;
     try {
-      return await this.redis.get(PREFIX + key); // @upstash מחזיר אובייקט מפוענח
+      const v = await this.redis.get(k); // @upstash מחזיר אובייקט מפוענח
+      console.log(
+        '[store][get] key=%s -> %s',
+        k,
+        v ? `active=${v.active} step=${v.brain && v.brain.step}` : '(null)'
+      );
+      return v;
     } catch (e) {
       this.logger.error('[state-store] get נכשל:', e.message);
       return null; // נפילה בטוחה
     }
   }
   async set(key, value) {
+    const k = PREFIX + key;
     try {
-      await this.redis.set(PREFIX + key, value, { ex: TTL_SECONDS });
+      await this.redis.set(k, value, { ex: TTL_SECONDS });
+      console.log(
+        '[store][set] key=%s value=%s',
+        k,
+        value ? `active=${value.active} step=${value.brain && value.brain.step}` : '(null)'
+      );
     } catch (e) {
       this.logger.error('[state-store] set נכשל:', e.message);
     }

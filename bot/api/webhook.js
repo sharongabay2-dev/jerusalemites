@@ -48,18 +48,24 @@ module.exports = async function handler(req, res) {
   try {
     const body = await readJsonBody(req);
     const evt = greenapi.normalize(body);
-    // --- אבחון זמני: כל הודעה (נכנסת/יוצאת) — כיוון, סוג, טקסט ומבנה (להסרה אחרי אימות) ---
+    // --- אבחון זמני מפורט: כל הודעה (להסרה אחרי אימות) ---
     try {
-      if (evt.kind === 'message') {
-        console.log(
-          '[webhook][diag] dir=%s viaApi=%s typeMsg=%s text=%j msgData=%s',
-          evt.direction,
-          evt.viaApi,
-          body.messageData && body.messageData.typeMessage,
-          evt.text,
-          JSON.stringify(body.messageData)
-        );
-      }
+      const sd = (body && body.senderData) || {};
+      const md = (body && body.messageData) || {};
+      console.log(
+        '[diag][msg] dir=%s kind=%s storeChatId=%s typeWebhook=%s typeMessage=%s textMessage=%j sender=%s senderChatId=%s viaApi=%s',
+        evt.direction,
+        evt.kind,
+        evt.chatId,
+        body && body.typeWebhook,
+        md.typeMessage,
+        evt.text,
+        sd.sender,
+        sd.chatId,
+        evt.viaApi
+      );
+      // המבנה המלא של messageData — לראות שדות לא צפויים (כפתורים/ציטוט)
+      console.log('[diag][msgData] %s', JSON.stringify(md));
     } catch (_) {}
     await getDispatcher().onEvent(evt);
   } catch (e) {
