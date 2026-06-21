@@ -16,6 +16,11 @@ const { greenapi, store, getDispatcher } = require('../src/runtime');
 
 const PANEL_PASSWORD = process.env.PANEL_PASSWORD || '';
 
+// מטמון שמות אנשי קשר באחסון המשותף (KV).
+const NAME_PREFIX = 'name:';
+const NAME_REFRESH_MS = 24 * 60 * 60 * 1000; // מרעננים שם לכל היותר פעם ביום
+const MAX_LOOKUPS = 12; // תקרת משיכות חדשות בכל טעינה (מהירות + מגבלות API)
+
 function getPw(req, url) {
   return req.headers['x-panel-pw'] || url.searchParams.get('pw') || '';
 }
@@ -73,18 +78,55 @@ module.exports = async function handler(req, res) {
         const prev = byChat.get(m.chatId);
         if (!prev || (m.timestamp || 0) >= (prev.timestamp || 0)) byChat.set(m.chatId, m);
       }
-      const chats = [];
-      for (const m of byChat.values()) {
-        const s = await store.get(m.chatId);
-        chats.push({
-          chatId: m.chatId,
-          name: m.senderName || m.chatName || m.chatId.replace('@c.us', ''),
-          phone: m.chatId.replace('@c.us', ''),
-          text: lastText(m),
-          timestamp: m.timestamp || 0,
-          active: !!(s && s.active),
-        });
-      }
+      const items = [...byChat.values()];
+
+      // קריאת דגל ההפעלה + מטמון השם במקביל (מהיר).
+      const enriched = await Promise.all(
+        items.map(async (m) => {
+          const phone = m.chatId.replace('@c.us', '');
+          const pushName = m.senderName || m.chatName || null;
+          const [sess, nameCache] = await Promise.all([
+            store.get(m.chatId),
+            store.get(NAME_PREFIX + m.chatId),
+          ]);
+          return { m, phone, pushName, active: !!(sess && sess.active), nameCache, contactName: undefined };
+        })
+      );
+
+      // איתור שמות שצריך לרענן (אין במטמון או ישן), עד תקרה — כדי לשמור על מהירות ומגבלות.
+      let budget = MAX_LOOKUPS;
+      const toLookup = enriched.filter((e) => {
+        const fresh = e.nameCache && Date.now() - (e.nameCache.ts || 0) < NAME_REFRESH_MS;
+        if (!fresh && budget > 0) { budget--; return true; }
+        return false;
+      });
+
+      // משיכת פרטי איש קשר במקביל (כל אחד עם הגנת שגיאה), ושמירה במטמון KV.
+      await Promise.all(
+        toLookup.map(async (e) => {
+          try {
+            const info = await greenapi.getContactInfo(e.m.chatId);
+            const contactName = (info && (info.contactName || info.name)) || '';
+            e.contactName = contactName;
+            await store.set(NAME_PREFIX + e.m.chatId, { contactName, ts: Date.now() });
+          } catch (_) { /* נשארים עם מטמון/נפילה לשם פרופיל/מספר */ }
+        })
+      );
+
+      // הרכבת הרשימה: שם שמור -> שם פרופיל (pushName) -> מספר.
+      const chats = enriched.map((e) => {
+        const cachedName =
+          e.contactName !== undefined ? e.contactName : e.nameCache ? e.nameCache.contactName : '';
+        const name = (cachedName && cachedName.trim()) || e.pushName || e.phone;
+        return {
+          chatId: e.m.chatId,
+          name,
+          phone: e.phone,
+          text: lastText(e.m),
+          timestamp: e.m.timestamp || 0,
+          active: e.active,
+        };
+      });
       chats.sort((a, b) => b.timestamp - a.timestamp);
       return res.status(200).json({ ok: true, store: store.backend, chats });
     } catch (e) {

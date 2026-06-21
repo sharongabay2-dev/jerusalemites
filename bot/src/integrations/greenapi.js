@@ -144,6 +144,11 @@ async function lastIncomingMessages(minutes = 1440) {
   return callApi('lastIncomingMessages', { httpMethod: 'GET', query: { minutes } });
 }
 
+// ── פרטי איש קשר (שם שמור בוואטסאפ) ──
+async function getContactInfo(chatId) {
+  return callApi('getContactInfo', { body: { chatId } });
+}
+
 // ── פירוק התראה נכנסת (webhook או polling) לאירוע אחיד ──
 let _loggedInteractive = false;
 
@@ -235,5 +240,6 @@ module.exports = {
   receiveNotification,
   deleteNotification,
   lastIncomingMessages,
+  getContactInfo,
   normalize,
 };
