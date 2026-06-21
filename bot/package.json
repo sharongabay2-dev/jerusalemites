@@ -1,6 +1,6 @@
 {
   "name": "sharon-photography-bot",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "בוט וואטסאפ לעסק צילום התדמית והפורטרט של שרון גבאי — מוח השיחה + חיבור Green API + הפעלה ידנית",
   "main": "src/runtime.js",
