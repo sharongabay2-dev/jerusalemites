@@ -46,9 +46,10 @@ function methodUrl(method) {
   return `${API_URL}/waInstance${ID_INSTANCE}/${method}/${API_TOKEN}`;
 }
 
-async function callApi(method, { httpMethod = 'POST', body, pathSuffix = '' } = {}) {
+async function callApi(method, { httpMethod = 'POST', body, pathSuffix = '', query } = {}) {
   ensureToken();
-  const url = methodUrl(method) + (pathSuffix ? `/${pathSuffix}` : '');
+  let url = methodUrl(method) + (pathSuffix ? `/${pathSuffix}` : '');
+  if (query) url += '?' + new URLSearchParams(query).toString();
   const opts = { method: httpMethod, headers: { 'Content-Type': 'application/json' } };
   if (body !== undefined) opts.body = JSON.stringify(body);
   const res = await fetch(url, opts);
@@ -136,6 +137,11 @@ async function deleteNotification(receiptId) {
     httpMethod: 'DELETE',
     pathSuffix: String(receiptId),
   });
+}
+
+// ── רשימת ההודעות הנכנסות האחרונות (לדף השליטה) ──
+async function lastIncomingMessages(minutes = 1440) {
+  return callApi('lastIncomingMessages', { httpMethod: 'GET', query: { minutes } });
 }
 
 // ── פירוק התראה נכנסת (webhook או polling) לאירוע אחיד ──
@@ -228,5 +234,6 @@ module.exports = {
   setSettings,
   receiveNotification,
   deleteNotification,
+  lastIncomingMessages,
   normalize,
 };
