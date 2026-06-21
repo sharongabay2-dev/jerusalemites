@@ -58,8 +58,8 @@ class Dispatcher {
       // הודעות שהבוט עצמו שלח — להתעלם (מניעת לולאה).
       if (evt.viaApi) return;
       // הודעה יוצאת מהמכשיר של שרון = פקודת שליטה ידנית.
-      if (text === TRIGGER_WORD) return this._activate(evt.chatId);
-      if (text === STOP_WORD) return this._deactivate(evt.chatId);
+      if (text === TRIGGER_WORD) return this.activate(evt.chatId);
+      if (text === STOP_WORD) return this.deactivate(evt.chatId);
       return; // הודעה ידנית אחרת של שרון — לא נוגעים.
     }
 
@@ -71,22 +71,27 @@ class Dispatcher {
     // מעבר למענה אנושי: הלקוח כתב בדיוק "נציג" או "שרון" (מילה בודדת).
     if (HUMAN_WORDS.includes(text)) {
       await this._send(evt.chatId, [messages.humanHandoff()]);
-      await this._deactivate(evt.chatId); // הבוט מפסיק להגיב; שרון ממשיך ידנית.
+      await this.deactivate(evt.chatId); // הבוט מפסיק להגיב; שרון ממשיך ידנית.
       return;
     }
 
     return this._respond(evt.chatId, text, session);
   }
 
-  async _activate(chatId) {
+  /**
+   * הפעלת הבוט בשיחה — שולח מיד את הודעת הפתיחה ומתחיל את הזרימה.
+   * משמש גם את המילה "בוט" וגם את כפתור "הפעל בוט" בדף השליטה.
+   */
+  async activate(chatId) {
     const brain = this.makeBrain();
     const replies = brain.start();
     await this.store.set(chatId, { active: true, brain: brain.toState() });
-    this.logger.log(`[dispatcher] הופעל ידנית בשיחה ${chatId}`);
+    this.logger.log(`[dispatcher] הופעל בשיחה ${chatId}`);
     await this._send(chatId, replies);
   }
 
-  async _deactivate(chatId) {
+  /** כיבוי הבוט בשיחה (מחזיר שליטה לשרון). */
+  async deactivate(chatId) {
     await this.store.del(chatId);
     this.logger.log(`[dispatcher] הוחזרה שליטה לשרון בשיחה ${chatId}`);
   }

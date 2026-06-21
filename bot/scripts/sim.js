@@ -92,6 +92,12 @@ async function run() {
     await dispatcher.onEvent(fromCustomer(CUSTOMER, msg));
   }
 
+  show('4א) הפעלה מהדף ("הפעל בוט") — הודעת הפתיחה נשלחת מיד');
+  const PANEL_CHAT = '972531234567@c.us';
+  console.log('🖱️ שרון לוחץ "הפעל בוט" בדף עבור ' + PANEL_CHAT);
+  await dispatcher.activate(PANEL_CHAT); // בדיוק מה שהדף עושה
+  console.log('(הבוט שלח את הפתיחה מיד, בלי לחכות להודעה מהלקוח)');
+
   show('4ב) מענה אנושי — לקוח אחר כותב "נציג"');
   const OTHER = '972500000002@c.us';
   await dispatcher.onEvent(fromSharon(OTHER, 'בוט')); // הפעלה בשיחה אחרת

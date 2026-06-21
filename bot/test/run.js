@@ -256,34 +256,30 @@ test('normalize מזהה בחירת רשימה (מקונן)', () => {
   assert.strictEqual(evt.text, '4');
 });
 
-// ── דף השליטה: הדגל מהדף מתנהג כמו "בוט"/"סיום" ──
-test('הפעלה מהדף (דגל active ב-store) גורמת לבוט לענות', async () => {
+// ── דף השליטה: "הפעל בוט"/"עצור בוט" (אותה לוגיקה כמו "בוט"/"סיום") ──
+test('הפעלה מהדף שולחת מיד את הודעת הפתיחה', async () => {
   const store = new MemoryStore();
   const { d, sent } = makeDispatcher(false, store);
-  await store.set(CHAT, { active: true, brain: null }); // כמו לחיצת "הפעל בוט"
-  await d.onEvent(inc('היי')); // הבוט מברך בהודעה הבאה, בלי ששרון כתב "בוט"
-  assert.ok(/שלום ותודה שפנית/.test(last(sent).message));
+  await d.activate(CHAT); // כמו לחיצת "הפעל בוט" בדף
+  assert.strictEqual(sent.length, 1, 'נשלחה הודעה מיד עם ההפעלה');
+  assert.ok(/שלום ותודה שפנית/.test(sent[0].message), 'זו הודעת הפתיחה');
+  assert.ok(Array.isArray(sent[0].buttons) && sent[0].buttons.length === 3);
 });
-test('כיבוי מהדף (מחיקת דגל) משתיק את הבוט', async () => {
+test('אחרי הפעלה מהדף, הלקוח ממשיך בזרימה', async () => {
   const store = new MemoryStore();
   const { d, sent } = makeDispatcher(false, store);
-  await store.set(CHAT, { active: true, brain: null });
-  await d.onEvent(inc('היי'));
-  await store.del(CHAT); // כמו לחיצת "עצור בוט"
+  await d.activate(CHAT);     // פתיחה מיידית
+  await d.onEvent(inc('1'));  // אדם אחד -> מיקום
+  assert.ok(/איפה תעדיפו/.test(last(sent).message));
+});
+test('כיבוי מהדף משתיק את הבוט', async () => {
+  const store = new MemoryStore();
+  const { d, sent } = makeDispatcher(false, store);
+  await d.activate(CHAT);
+  await d.deactivate(CHAT);   // כמו לחיצת "עצור בוט"
   const before = sent.length;
   await d.onEvent(inc('1'));
   assert.strictEqual(sent.length, before, 'אחרי כיבוי הבוט שותק');
-});
-test('הפעלה מהדף שומרת התקדמות קיימת (brain)', async () => {
-  const store = new MemoryStore();
-  const { d, sent } = makeDispatcher(false, store);
-  await d.onEvent(out('בוט'));      // הופעל, brain בשלב audience
-  await d.onEvent(inc('1'));        // -> מיקום
-  const saved = await store.get(CHAT);
-  // לוגיקת "הפעל בוט" בדף: שומרת brain קיים
-  await store.set(CHAT, { active: true, brain: saved.brain });
-  await d.onEvent(inc('1'));        // ממשיך -> חבילות (לא מתחיל מחדש)
-  assert.ok(/אלו חבילות הצילום/.test(last(sent).message));
 });
 
 // ── אחסון מתמיד ──

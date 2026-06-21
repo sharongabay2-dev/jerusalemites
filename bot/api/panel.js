@@ -12,7 +12,7 @@
  * דרך אותו אחסון מצב (store). אין שליחת הודעה ללקוח.
  */
 
-const { greenapi, store } = require('../src/runtime');
+const { greenapi, store, getDispatcher } = require('../src/runtime');
 
 const PANEL_PASSWORD = process.env.PANEL_PASSWORD || '';
 
@@ -53,11 +53,10 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ ok: false, error: 'bad request' });
     }
     if (act === 'on') {
-      // שומר התקדמות קיימת אם יש; לא שולח שום הודעה ללקוח.
-      const cur = (await store.get(chatId)) || {};
-      await store.set(chatId, { active: true, brain: cur.brain || null });
+      // הפעלה: שולח מיד את הודעת הפתיחה ומתחיל את הזרימה (כמו "בוט").
+      await getDispatcher().activate(chatId);
     } else {
-      await store.del(chatId);
+      await getDispatcher().deactivate(chatId);
     }
     return res.status(200).json({ ok: true, chatId, active: act === 'on' });
   }
