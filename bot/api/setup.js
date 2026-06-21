@@ -12,7 +12,7 @@
  *   GET /api/setup?key=<apiToken>&url=<custom>   -> webhookUrl מותאם.
  */
 
-const { greenapi, calendar } = require('../src/runtime');
+const { greenapi, calendar, store } = require('../src/runtime');
 
 module.exports = async function handler(req, res) {
   const url = new URL(req.url, `https://${req.headers.host}`);
@@ -27,6 +27,18 @@ module.exports = async function handler(req, res) {
     if (url.searchParams.get('show')) {
       const settings = await greenapi.getSettings();
       res.status(200).json({ ok: true, settings });
+      return;
+    }
+
+    // בדיקת אחסון: כתיבה+קריאה דרך ה-store המשותף (KV בפרודקשן).
+    if (url.searchParams.get('check') === 'store') {
+      const k = '__selftest__' + Date.now();
+      const val = { active: true, brain: null, t: Date.now() };
+      await store.set(k, val);
+      const readBack = await store.get(k);
+      await store.del(k);
+      const ok = !!(readBack && readBack.active === true && readBack.t === val.t);
+      res.status(200).json({ ok, backend: store.backend, wrote: val, read: readBack });
       return;
     }
 
