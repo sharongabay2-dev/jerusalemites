@@ -96,6 +96,10 @@ class Dispatcher {
     // הודעה נכנסת מלקוח.
     const session = await this.store.get(evt.chatId);
     const active = this.autoReplyAll || !!(session && session.active);
+    // --- אבחון זמני ---
+    this.logger.log(
+      `[dispatcher][diag] נכנסת chat=${evt.chatId} active=${active} hasLastOptions=${!!(session && session.lastOptions)} text=${JSON.stringify(text)}`
+    );
     if (!active) return; // שער ההפעלה הידנית.
 
     // מעבר למענה אנושי: הלקוח כתב בדיוק "נציג" או "שרון" (מילה בודדת).
@@ -136,6 +140,7 @@ class Dispatcher {
       const brain = this.makeBrain().loadState(session.brain);
       // לחיצת כפתור/רשימה מגיעה לעיתים כטקסט של תווית האפשרות — ממירים לבחירה.
       const choice = translateChoice(text, session.lastOptions);
+      this.logger.log(`[dispatcher][diag] תרגום בחירה: ${JSON.stringify(text)} -> ${JSON.stringify(choice)}`);
       const replies = await brain.receive(choice);
       await this.store.set(chatId, {
         active: true,

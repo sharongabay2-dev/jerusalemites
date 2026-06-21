@@ -47,18 +47,20 @@ module.exports = async function handler(req, res) {
 
   try {
     const body = await readJsonBody(req);
-    // --- אבחון זמני: מבנה מלא של כל הודעה נכנסת (להסרה לאחר אימות) ---
+    const evt = greenapi.normalize(body);
+    // --- אבחון זמני: כל הודעה (נכנסת/יוצאת) — כיוון, סוג, טקסט ומבנה (להסרה אחרי אימות) ---
     try {
-      if (body && body.typeWebhook === 'incomingMessageReceived') {
+      if (evt.kind === 'message') {
         console.log(
-          '[webhook][diag] typeWebhook=%s typeMessage=%s messageData=%s',
-          body.typeWebhook,
+          '[webhook][diag] dir=%s viaApi=%s typeMsg=%s text=%j msgData=%s',
+          evt.direction,
+          evt.viaApi,
           body.messageData && body.messageData.typeMessage,
+          evt.text,
           JSON.stringify(body.messageData)
         );
       }
     } catch (_) {}
-    const evt = greenapi.normalize(body);
     await getDispatcher().onEvent(evt);
   } catch (e) {
     // מחזירים 200 כדי ש-Green API לא יציף בניסיונות חוזרים; שגיאות ללוג.
