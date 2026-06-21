@@ -37,6 +37,18 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    // אבחון: היסטוריית webhooks אחרונים (מבנה מלא, ללא קיצוץ לוגים).
+    if (url.searchParams.get('check') === 'debug') {
+      const events = (await store.get('debug:events')) || [];
+      res.status(200).json({ ok: true, count: events.length, events });
+      return;
+    }
+    if (url.searchParams.get('check') === 'debugclear') {
+      await store.del('debug:events');
+      res.status(200).json({ ok: true, cleared: true });
+      return;
+    }
+
     // בדיקת אחסון: כתיבה+קריאה דרך ה-store המשותף (KV בפרודקשן).
     if (url.searchParams.get('check') === 'store') {
       const k = '__selftest__' + Date.now();

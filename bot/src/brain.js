@@ -165,10 +165,16 @@ class Brain {
     if (!t || /^[1-9]$/.test(t)) return text; // כבר מספר
     const opts = this._currentOptions();
     if (!opts) return text;
+    // התאמה מדויקת ל-id (למשל "1") או לתווית ("צילום תדמית ליחיד").
     for (const o of opts) {
+      const id = String(o.id);
       const title = normChoice(o.title);
-      if (title && (t === title || title.startsWith(t) || t.startsWith(title))) return o.id;
+      if (t === id) return id;
+      if (title && (t === title || title.startsWith(t) || t.startsWith(title))) return id;
     }
+    // buttonId עם מספר משובץ (btn_1 / option_1 / 1) -> מספר הבחירה.
+    const m = t.match(/(\d+)/);
+    if (m && opts.some((o) => String(o.id) === m[1])) return m[1];
     return text;
   }
 

@@ -150,46 +150,37 @@ async function getContactInfo(chatId) {
 }
 
 // ── פירוק התראה נכנסת (webhook או polling) לאירוע אחיד ──
-let _loggedInteractive = false;
 
-// סורק במבנה התשובה אחרי מזהה הכפתור שנבחר (מכסה כמה צורות אפשריות של Green API).
-function findSelectedButtonId(messageData) {
-  const lrm = messageData.listResponseMessage || {};
-  const candidates = [
-    messageData.buttonsResponseMessage,
-    messageData.templateButtonReplyMessage,
-    messageData.interactiveButtonsReply,
-    messageData.interactiveButtons,
-    lrm,
-    lrm.singleSelectReply, // רשימה: לעיתים ה-rowId מקונן כאן
-  ];
-  for (const c of candidates) {
-    if (!c || typeof c !== 'object') continue;
-    const id =
-      c.selectedButtonId || c.selectedId || c.buttonId || c.selectedRowId || c.rowId || c.id;
-    if (id != null && String(id).trim() !== '') return String(id).trim();
-  }
-  return null;
-}
-
+// מחלץ את הטקסט/בחירה מכל סוגי ההודעות (טקסט, כפתורים, רשימה, תבנית, אינטראקטיבי).
 function extractText(messageData) {
-  if (!messageData) return '';
-  const td = messageData.textMessageData;
-  if (td && typeof td.textMessage === 'string') return td.textMessage;
-  const ext = messageData.extendedTextMessageData;
-  if (ext && typeof ext.text === 'string') return ext.text;
+  if (!messageData || typeof messageData !== 'object') return '';
+  const md = messageData;
 
-  // תשובת כפתור/רשימה אינטראקטיבית — מחזירים את מזהה הכפתור (כמו הקלדת אותו מספר).
-  const buttonId = findSelectedButtonId(messageData);
-  if (buttonId) return buttonId;
+  // טקסט רגיל
+  if (md.textMessageData && typeof md.textMessageData.textMessage === 'string' && md.textMessageData.textMessage.trim()) {
+    return md.textMessageData.textMessage.trim();
+  }
+  if (md.extendedTextMessageData && typeof md.extendedTextMessageData.text === 'string' && md.extendedTextMessageData.text.trim()) {
+    return md.extendedTextMessageData.text.trim();
+  }
 
-  // פעם אחת: רישום מבנה אינטראקטיבי לא מזוהה ללוג, לאיתור הפורמט המדויק.
-  const tm = messageData.typeMessage || '';
-  if (!_loggedInteractive && /interactive|button|list|template/i.test(tm)) {
-    _loggedInteractive = true;
-    try {
-      console.log('[greenapi] מבנה הודעה אינטראקטיבית לבדיקה:', JSON.stringify(messageData));
-    } catch (_) {}
+  // תשובות אינטראקטיביות — מזהה הבחירה (id) או התווית (title) שנבחרה.
+  const lrm = md.listResponseMessage || {};
+  const containers = [
+    md.buttonsResponseMessage,
+    md.templateButtonReplyMessage,
+    md.interactiveButtonsReply,
+    md.interactiveButtonsReplyMessage,
+    md.interactiveButtons,
+    lrm,
+    lrm.singleSelectReply, // ברשימה ה-rowId לעיתים מקונן כאן
+  ];
+  for (const c of containers) {
+    if (!c || typeof c !== 'object') continue;
+    const id = c.selectedButtonId || c.selectedId || c.buttonId || c.selectedRowId || c.rowId || c.id;
+    if (id != null && String(id).trim() !== '') return String(id).trim();
+    const title = c.title || c.selectedDisplayText || c.selectedButtonText || c.text;
+    if (title != null && String(title).trim() !== '') return String(title).trim();
   }
   return '';
 }
@@ -213,14 +204,18 @@ function normalize(body) {
   const meta = MESSAGE_TYPES[type];
   if (meta) {
     const senderData = body.senderData || {};
+    const md = body.messageData || {};
+    const text = extractText(md) || (typeof body.text === 'string' ? body.text.trim() : '');
     return {
       kind: 'message',
       direction: meta.direction,
       viaApi: meta.viaApi,
       chatId: senderData.chatId || null,
       senderName: senderData.senderName || senderData.chatName || null,
+      sender: senderData.sender || null,
+      typeMessage: md.typeMessage || null,
       instanceWid: (body.instanceData && body.instanceData.wid) || null,
-      text: extractText(body.messageData),
+      text,
       raw: body,
     };
   }

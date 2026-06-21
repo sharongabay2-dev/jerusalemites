@@ -222,6 +222,66 @@ test('בחירת רשימה שמגיעה כתווית-טקסט מתקדמת', as
   await d.onEvent(inc('11 עד 20 עובדים')); // תווית שורת רשימה -> מדרגה
   assert.ok(/התעריף הוא 550/.test(last(sent).message));
 });
+
+// ── זרימה מקצה לקצה עם מבני webhook אמיתיים של לחיצות (step 6) ──
+const greenapiMod = require('../src/integrations/greenapi');
+function dispWithStore() {
+  const store = new MemoryStore();
+  const sent = [];
+  const greenapi = {
+    sendMessage: async (c, m) => sent.push({ chatId: c, message: m }),
+    sendButtons: async (c, m, b) => sent.push({ chatId: c, message: m, buttons: b }),
+    sendList: async (c, m, r) => sent.push({ chatId: c, message: m, list: r }),
+  };
+  const makeBrain = () => new Brain({ calendar: new MockCalendar(BASE), notify: () => {} });
+  const d = new Dispatcher({ greenapi, makeBrain, store, logger: { log() {}, error() {} } });
+  return { d, sent, store };
+}
+const X = '972539999999@c.us';
+
+test('הפעלה + buttonsResponseMessage(selectedButtonId) — אותו chatId, מתקדם', async () => {
+  const { d, sent } = dispWithStore();
+  await d.activate(X);
+  const body = {
+    typeWebhook: 'incomingMessageReceived',
+    senderData: { chatId: X, sender: X },
+    messageData: { typeMessage: 'buttonsResponseMessage', buttonsResponseMessage: { selectedButtonId: '1', title: 'צילום תדמית ליחיד' } },
+  };
+  const evt = greenapiMod.normalize(body);
+  assert.strictEqual(evt.chatId, X, 'chatId שמגיע = chatId שהופעל');
+  assert.strictEqual(evt.text, '1', 'חולץ selectedButtonId');
+  await d.onEvent(evt);
+  assert.ok(/איפה תעדיפו/.test(last(sent).message), 'התקדם לשאלת מיקום');
+});
+
+test('buttonsResponseMessage רק עם title (בלי id) — מתקדם דרך התווית', async () => {
+  const { d, sent } = dispWithStore();
+  await d.activate(X);
+  const evt = greenapiMod.normalize({
+    typeWebhook: 'incomingMessageReceived',
+    senderData: { chatId: X, sender: X },
+    messageData: { typeMessage: 'buttonsResponseMessage', buttonsResponseMessage: { selectedButtonId: '', title: 'מספר עובדים / הנהלה' } },
+  });
+  assert.strictEqual(evt.text, 'מספר עובדים / הנהלה');
+  await d.onEvent(evt);
+  assert.ok(/כמה אנשי צוות/.test(last(sent).message));
+});
+
+test('listResponseMessage(singleSelectReply.selectedRowId) — מתקדם', async () => {
+  const { d, sent } = dispWithStore();
+  await d.activate(X);
+  await d.onEvent(greenapiMod.normalize({
+    typeWebhook: 'incomingMessageReceived', senderData: { chatId: X, sender: X },
+    messageData: { typeMessage: 'buttonsResponseMessage', buttonsResponseMessage: { selectedButtonId: '2' } },
+  })); // -> צוות, שאלת כמות (רשימה)
+  const evt = greenapiMod.normalize({
+    typeWebhook: 'incomingMessageReceived', senderData: { chatId: X, sender: X },
+    messageData: { typeMessage: 'listResponseMessage', listResponseMessage: { singleSelectReply: { selectedRowId: '3' } } },
+  });
+  assert.strictEqual(evt.text, '3', 'חולץ selectedRowId מקונן');
+  await d.onEvent(evt);
+  assert.ok(/התעריף הוא 550/.test(last(sent).message));
+});
 test('"סיום" מחזיר שליטה', async () => {
   const { d, sent } = makeDispatcher(false);
   await d.onEvent(out('בוט'));

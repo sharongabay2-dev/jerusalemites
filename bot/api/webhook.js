@@ -13,6 +13,36 @@ const { AUTO_REPLY_ALL, TRIGGER_WORD, STOP_WORD } = require('../src/config/bot')
 
 // המספר של הבוט עצמו (= המספר העסקי = המכשיר של שרון). הודעות ממנו אינן קלט לקוח.
 const BOT_WID = process.env.BOT_WID || '972542000300@c.us';
+const DEBUG_KEY = 'debug:events';
+
+// רישום אירוע ל-Redis (מבנה מלא, ללא קיצוץ לוגים) — לאבחון.
+async function recordDebug(body, evt) {
+  try {
+    let session = null;
+    if (evt.chatId) {
+      try { session = await store.get(evt.chatId); } catch (_) {}
+    }
+    const rec = {
+      ts: new Date().toISOString(),
+      typeWebhook: body && body.typeWebhook,
+      typeMessage: body && body.messageData && body.messageData.typeMessage,
+      sender: body && body.senderData && body.senderData.sender,
+      senderChatId: body && body.senderData && body.senderData.chatId,
+      instanceWid: body && body.instanceData && body.instanceData.wid,
+      evtChatId: evt.chatId,
+      evtDir: evt.direction,
+      evtKind: evt.kind,
+      evtText: evt.text,
+      sessionFound: !!session,
+      sessionStep: session && session.brain && session.brain.step,
+      messageData: body && body.messageData,
+    };
+    const arr = (await store.get(DEBUG_KEY)) || [];
+    arr.push(rec);
+    while (arr.length > 30) arr.shift();
+    await store.set(DEBUG_KEY, arr);
+  } catch (_) {}
+}
 
 async function readJsonBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
@@ -70,6 +100,9 @@ module.exports = async function handler(req, res) {
       // המבנה המלא של messageData — לראות שדות לא צפויים (כפתורים/ציטוט)
       console.log('[diag][msgData] %s', JSON.stringify(md));
     } catch (_) {}
+
+    // אבחון מתמיד ל-Redis (נקרא דרך /api/setup?check=debug) — מבנה מלא.
+    await recordDebug(body, evt);
 
     // ── סינון: מעבדים אך ורק הודעות נכנסות אמיתיות מהלקוח ──
     const typeWebhook = body && body.typeWebhook;
