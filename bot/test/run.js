@@ -206,6 +206,22 @@ test('לחיצת כפתור (buttonId) = הקלדת מספר', async () => {
   await d.onEvent(inc('1')); // אדם אחד -> מיקום
   assert.ok(/איפה תעדיפו/.test(last(sent).message));
 });
+test('כפתור שמגיע כתווית-טקסט מתקדם בשיחה', async () => {
+  const store = new MemoryStore();
+  const { d, sent } = makeDispatcher(false, store);
+  await d.activate(CHAT); // פתיחה עם 3 כפתורים
+  await d.onEvent(inc('צילום תדמית ליחיד')); // לחיצה שהגיעה כטקסט התווית, לא מספר
+  assert.ok(/איפה תעדיפו/.test(last(sent).message), 'זוהה כאפשרות 1 והתקדם');
+});
+test('בחירת רשימה שמגיעה כתווית-טקסט מתקדמת', async () => {
+  const store = new MemoryStore();
+  const { d, sent } = makeDispatcher(false, store);
+  await d.activate(CHAT);
+  await d.onEvent(inc('מספר עובדים / הנהלה')); // תווית כפתור -> צוות
+  assert.ok(/כמה אנשי צוות/.test(last(sent).message));
+  await d.onEvent(inc('11 עד 20 עובדים')); // תווית שורת רשימה -> מדרגה
+  assert.ok(/התעריף הוא 550/.test(last(sent).message));
+});
 test('"סיום" מחזיר שליטה', async () => {
   const { d, sent } = makeDispatcher(false);
   await d.onEvent(out('בוט'));

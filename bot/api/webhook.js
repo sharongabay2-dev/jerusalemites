@@ -47,6 +47,17 @@ module.exports = async function handler(req, res) {
 
   try {
     const body = await readJsonBody(req);
+    // --- אבחון זמני: מבנה מלא של כל הודעה נכנסת (להסרה לאחר אימות) ---
+    try {
+      if (body && body.typeWebhook === 'incomingMessageReceived') {
+        console.log(
+          '[webhook][diag] typeWebhook=%s typeMessage=%s messageData=%s',
+          body.typeWebhook,
+          body.messageData && body.messageData.typeMessage,
+          JSON.stringify(body.messageData)
+        );
+      }
+    } catch (_) {}
     const evt = greenapi.normalize(body);
     await getDispatcher().onEvent(evt);
   } catch (e) {
