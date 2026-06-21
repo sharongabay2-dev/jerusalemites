@@ -30,6 +30,13 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    // אבחון: אילו משתני סביבה רלוונטיים (KV/Upstash/Redis) קיימים בפועל (שמות בלבד).
+    if (url.searchParams.get('check') === 'env') {
+      const { presentEnvNames } = require('../src/state-store');
+      res.status(200).json({ ok: true, backend: store.backend, envNames: presentEnvNames() });
+      return;
+    }
+
     // בדיקת אחסון: כתיבה+קריאה דרך ה-store המשותף (KV בפרודקשן).
     if (url.searchParams.get('check') === 'store') {
       const k = '__selftest__' + Date.now();
