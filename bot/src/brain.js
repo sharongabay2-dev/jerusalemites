@@ -41,6 +41,21 @@ function reviveSlot(slot) {
   return slot;
 }
 
+// נרמול טקסט להשוואת תוויות, וחילוץ אפשרויות (id+title) מהודעת כפתורים/רשימה.
+function normChoice(s) {
+  return String(s || '').trim().replace(/\s+/g, ' ');
+}
+function optionsOf(msg) {
+  if (!msg || typeof msg !== 'object') return null;
+  if (Array.isArray(msg.buttons)) {
+    return msg.buttons.map((b) => ({ id: String(b.id), title: String(b.title) }));
+  }
+  if (msg.list && Array.isArray(msg.list.rows)) {
+    return msg.list.rows.map((r) => ({ id: String(r.id), title: String(r.title) }));
+  }
+  return null;
+}
+
 // שאלות פרטי הקשר לפי מטרה.
 const QUESTIONS = {
   book: {
@@ -111,16 +126,50 @@ class Brain {
 
   async receive(text) {
     if (this.step === 'done') return [messages.goodbye()];
+    // לחיצת כפתור/רשימה מגיעה לעיתים כטקסט של תווית האפשרות — ממירים למספר הבחירה,
+    // לפי האפשרויות של השלב הנוכחי (עצמאי, לא תלוי במה שנשמר קודם).
+    const choice = this._translateChoice(text);
     switch (this.step) {
-      case 'audience': return this._handleAudience(text);
-      case 'location': return this._handleLocation(text);
-      case 'package': return this._handlePackage(text);
-      case 'employees': return this._handleEmployees(text);
-      case 'team_confirm': return this._handleTeamConfirm(text);
-      case 'schedule': return this._handleSchedule(text);
-      case 'contact': return this._handleContact(text);
+      case 'audience': return this._handleAudience(choice);
+      case 'location': return this._handleLocation(choice);
+      case 'package': return this._handlePackage(choice);
+      case 'employees': return this._handleEmployees(choice);
+      case 'team_confirm': return this._handleTeamConfirm(choice);
+      case 'schedule': return this._handleSchedule(choice);
+      case 'contact': return this._handleContact(text); // פרטי קשר — לא ממירים
       default: return [messages.notUnderstood()];
     }
+  }
+
+  // אפשרויות הבחירה של השלב הנוכחי (מחושבות מחדש מתוך הודעת השאלה).
+  _currentOptions() {
+    try {
+      let msg = null;
+      switch (this.step) {
+        case 'audience': msg = messages.greeting(); break;
+        case 'location': msg = messages.askLocation(); break;
+        case 'package': msg = messages.presentPackages(this.lead.location); break;
+        case 'employees': msg = messages.askEmployees(); break;
+        case 'team_confirm': msg = messages.teamPrice(this.lead.team); break;
+        case 'schedule': msg = messages.presentSlots((this.lead._proposed || []).map(reviveSlot)); break;
+        default: return null;
+      }
+      return optionsOf(msg);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  _translateChoice(text) {
+    const t = normChoice(text);
+    if (!t || /^[1-9]$/.test(t)) return text; // כבר מספר
+    const opts = this._currentOptions();
+    if (!opts) return text;
+    for (const o of opts) {
+      const title = normChoice(o.title);
+      if (title && (t === title || title.startsWith(t) || t.startsWith(title))) return o.id;
+    }
+    return text;
   }
 
   // 1 · קהל

@@ -25,36 +25,8 @@ const messages = require('./messages');
 
 // מילים שהלקוח שולח כדי לעבור למענה אנושי (מילה בודדת בדיוק).
 const HUMAN_WORDS = ['נציג', 'שרון'];
-
-function normChoice(s) {
-  return String(s || '').trim().replace(/\s+/g, ' ');
-}
-
-// מחלץ את אפשרויות הבחירה (id+title) מהודעת התגובה האחרונה (כפתורים/רשימה).
-function optionsFromReplies(replies) {
-  let opts = null;
-  for (const r of replies || []) {
-    if (!r || typeof r !== 'object') continue;
-    if (Array.isArray(r.buttons)) {
-      opts = r.buttons.map((b) => ({ id: String(b.id), title: String(b.title) }));
-    } else if (r.list && Array.isArray(r.list.rows)) {
-      opts = r.list.rows.map((x) => ({ id: String(x.id), title: String(x.title) }));
-    }
-  }
-  return opts;
-}
-
-// לחיצת כפתור/רשימה מגיעה לעיתים כטקסט של תווית האפשרות (ולא כמספר/buttonId).
-// אם הטקסט תואם לתווית של אפשרות שהוצעה — מחזירים את ה-id (מספר), כמו הקלדה.
-function translateChoice(text, lastOptions) {
-  const t = normChoice(text);
-  if (!t || /^[1-9]$/.test(t) || !Array.isArray(lastOptions)) return text;
-  for (const o of lastOptions) {
-    const title = normChoice(o.title);
-    if (title && (t === title || title.startsWith(t) || t.startsWith(title))) return o.id;
-  }
-  return text;
-}
+// הערה: המרת לחיצת כפתור/רשימה (שמגיעה כטקסט התווית) למספר הבחירה נעשית
+// בתוך ה-Brain עצמו (לפי השלב הנוכחי) — כך שזה עובד תמיד, ללא תלות במצב שמור.
 
 class Dispatcher {
   /**
@@ -119,11 +91,7 @@ class Dispatcher {
   async activate(chatId) {
     const brain = this.makeBrain();
     const replies = brain.start();
-    await this.store.set(chatId, {
-      active: true,
-      brain: brain.toState(),
-      lastOptions: optionsFromReplies(replies),
-    });
+    await this.store.set(chatId, { active: true, brain: brain.toState() });
     this.logger.log(`[dispatcher] הופעל בשיחה ${chatId}`);
     await this._send(chatId, replies);
   }
@@ -138,25 +106,14 @@ class Dispatcher {
     // שיחה קיימת — משחזרים את המוח מהמצב השמור וממשיכים.
     if (session && session.brain) {
       const brain = this.makeBrain().loadState(session.brain);
-      // לחיצת כפתור/רשימה מגיעה לעיתים כטקסט של תווית האפשרות — ממירים לבחירה.
-      const choice = translateChoice(text, session.lastOptions);
-      this.logger.log(`[dispatcher][diag] תרגום בחירה: ${JSON.stringify(text)} -> ${JSON.stringify(choice)}`);
-      const replies = await brain.receive(choice);
-      await this.store.set(chatId, {
-        active: true,
-        brain: brain.toState(),
-        lastOptions: optionsFromReplies(replies),
-      });
+      const replies = await brain.receive(text); // ה-Brain ממיר תווית-כפתור למספר בעצמו
+      await this.store.set(chatId, { active: true, brain: brain.toState() });
       return this._send(chatId, replies);
     }
     // מצב אוטומטי לכולם, הודעה ראשונה — מברכים ופותחים שיחה.
     const brain = this.makeBrain();
     const replies = brain.start();
-    await this.store.set(chatId, {
-      active: true,
-      brain: brain.toState(),
-      lastOptions: optionsFromReplies(replies),
-    });
+    await this.store.set(chatId, { active: true, brain: brain.toState() });
     return this._send(chatId, replies);
   }
 
