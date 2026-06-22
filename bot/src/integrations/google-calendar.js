@@ -25,6 +25,8 @@ const {
   windowIsFree,
   fullDaySlot,
   slotIsFree,
+  nowInTz,
+  isFutureSlot,
   WINDOW_START_MIN,
   WINDOW_END_MIN,
 } = require('../scheduling');
@@ -134,12 +136,14 @@ class GoogleCalendar {
   async proposeStudioSlots(tierId, { limit = 4, horizonDays = 30 } = {}) {
     const byDay = await this._busyByDay(horizonDays);
     const today = new Date();
+    const now = nowInTz(this.timeZone); // סינון חלונות שכבר עברו
     const out = [];
     for (let i = 0; i < horizonDays && out.length < limit; i++) {
       const day = addDays(today, i);
       if (!isWorkingDay(day)) continue;
       const busy = byDay[toDateKey(day)] || [];
       for (const s of studioSlotsForDay(day, tierId, busy)) {
+        if (!isFutureSlot(s, 30, now)) continue; // רק חלונות עתידיים (now + 30 דק')
         out.push(s);
         if (out.length >= limit) break;
       }
@@ -150,12 +154,15 @@ class GoogleCalendar {
   async proposeOnsiteDays(_tierId, { limit = 3, horizonDays = 45 } = {}) {
     const byDay = await this._busyByDay(horizonDays);
     const today = new Date();
+    const now = nowInTz(this.timeZone);
     const out = [];
     for (let i = 0; i < horizonDays && out.length < limit; i++) {
       const day = addDays(today, i);
       if (!isWorkingDay(day)) continue;
       if (!windowIsFree(byDay[toDateKey(day)] || [])) continue;
-      out.push(fullDaySlot(day));
+      const slot = fullDaySlot(day);
+      if (!isFutureSlot(slot, 30, now)) continue; // לא להציע יום שכבר עבר חלון הבוקר
+      out.push(slot);
     }
     return out;
   }

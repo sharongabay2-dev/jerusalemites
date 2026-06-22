@@ -12,7 +12,7 @@ const { MockCalendar } = require('../src/calendar');
 const { Dispatcher } = require('../src/dispatcher');
 const { MemoryStore } = require('../src/store');
 const { getTier, getTeamBracket, TEAM } = require('../src/config/pricing');
-const { studioSlotsForDay, windowIsFree } = require('../src/scheduling');
+const { studioSlotsForDay, windowIsFree, isFutureSlot } = require('../src/scheduling');
 const {
   WINDOW_START_MIN, WINDOW_END_MIN, STUDIO_DURATION_MIN, isWorkingDay,
 } = require('../src/config/availability');
@@ -68,6 +68,14 @@ test('משבצות סטודיו: חלון, משך, ללא חפיפה, רווח 3
 test('windowIsFree', () => {
   assert.strictEqual(windowIsFree([]), true);
   assert.strictEqual(windowIsFree([{ startMin: 0, endMin: 1440 }]), false);
+});
+test('isFutureSlot — מסנן חלונות שעברו היום, שומר עתידיים', () => {
+  const now = { dateKey: '2026-06-21', minutes: 20 * 60 }; // 20:00
+  assert.strictEqual(isFutureSlot({ dateKey: '2026-06-21', startMin: 9 * 60 + 30 }, 30, now), false, 'בוקר היום -> עבר');
+  assert.strictEqual(isFutureSlot({ dateKey: '2026-06-22', startMin: 9 * 60 + 30 }, 30, now), true, 'מחר -> עתידי');
+  const now2 = { dateKey: '2026-06-21', minutes: 9 * 60 }; // 09:00
+  assert.strictEqual(isFutureSlot({ dateKey: '2026-06-21', startMin: 9 * 60 + 30 }, 30, now2), true, '9:30 כשעכשיו 9:00 -> עתידי');
+  assert.strictEqual(isFutureSlot({ dateKey: '2026-06-21', startMin: 9 * 60 + 20 }, 30, now2), false, 'פחות מ-now+30 -> עבר');
 });
 test('proposeOnsiteDays — ימי עבודה פנויים', async () => {
   const cal = new MockCalendar(BASE);
@@ -150,6 +158,19 @@ test('צוות מעל 40 -> הצעה אישית, איסוף שם+טלפון', as
   assert.ok(!leads[0].booking);
   assert.ok(/מעל 40/.test(leads[0].outcome));
   assert.ok(/העברתי את הפרטים/.test(reply));
+});
+
+test('כפתור חבילה עם מחיר ("בסיס · 1,250 ₪") מזוהה לפי המילה לפני ·', async () => {
+  // אדם אחד -> סטודיו -> ואז כפתור חבילה עם מחיר
+  let b = newBrain();
+  await play(b, ['1', '1']); // עד שלב החבילות
+  let r = await b.receive('בסיס · 1,250 ₪');
+  assert.ok(/המועדים הפנויים|לא נמצא/.test(toText(r)), 'בסיס זוהה והמשיך לתיאום');
+  // סטנדרט -> לא להתבלבל עם "1" שבמחיר
+  b = newBrain();
+  await play(b, ['1', '2']); // אדם אחד, בית העסק
+  r = await b.receive('סטנדרט · 3,400 ₪');
+  assert.strictEqual(b.lead.tier && b.lead.tier.id, 'standard', 'סטנדרט זוהה נכון (לא בסיס)');
 });
 
 // ── הפעלה ידנית (Dispatcher) ──

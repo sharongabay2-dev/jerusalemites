@@ -93,6 +93,26 @@ function fullDaySlot(date) {
   return Object.assign(makeSlot(date, WINDOW_START_MIN, WINDOW_END_MIN), { fullDay: true });
 }
 
+// "עכשיו" באזור זמן נתון: { dateKey: 'YYYY-MM-DD', minutes: דקות מתחילת היום }.
+function nowInTz(timeZone = 'Asia/Jerusalem') {
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+  const p = {};
+  for (const x of fmt.formatToParts(new Date())) p[x.type] = x.value;
+  const hour = p.hour === '24' ? 0 : parseInt(p.hour, 10);
+  return { dateKey: `${p.year}-${p.month}-${p.day}`, minutes: hour * 60 + parseInt(p.minute, 10) };
+}
+
+// האם המשבצת בעתיד (היום — רק אם זמן ההתחלה גדול מ-now + leadMin).
+function isFutureSlot(slot, leadMin, now) {
+  if (!slot || !slot.dateKey) return true;
+  if (slot.dateKey > now.dateKey) return true; // יום עתידי
+  if (slot.dateKey < now.dateKey) return false; // יום שעבר
+  return slot.startMin >= now.minutes + leadMin; // היום — רק חלונות עתידיים
+}
+
 module.exports = {
   HE_WEEKDAYS,
   toDateKey,
@@ -103,6 +123,8 @@ module.exports = {
   studioSlotsForDay,
   windowIsFree,
   fullDaySlot,
+  nowInTz,
+  isFutureSlot,
   WINDOW_START_MIN,
   WINDOW_END_MIN,
 };

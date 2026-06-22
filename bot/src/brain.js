@@ -45,6 +45,10 @@ function reviveSlot(slot) {
 function normChoice(s) {
   return String(s || '').trim().replace(/\s+/g, ' ');
 }
+// החלק שלפני הנקודה התווכית "·" (למשל "בסיס · 1,250 ₪" -> "בסיס").
+function labelBeforeDot(s) {
+  return normChoice(String(s || '').split('·')[0]);
+}
 function optionsOf(msg) {
   if (!msg || typeof msg !== 'object') return null;
   if (Array.isArray(msg.buttons)) {
@@ -165,16 +169,22 @@ class Brain {
     if (!t || /^[1-9]$/.test(t)) return text; // כבר מספר
     const opts = this._currentOptions();
     if (!opts) return text;
-    // התאמה מדויקת ל-id (למשל "1") או לתווית ("צילום תדמית ליחיד").
+    const tLabel = labelBeforeDot(t); // למשל מתוך "בסיס · 1,250 ₪" -> "בסיס"
     for (const o of opts) {
       const id = String(o.id);
       const title = normChoice(o.title);
       if (t === id) return id;
       if (title && (t === title || title.startsWith(t) || t.startsWith(title))) return id;
+      // התאמה לפי החלק שלפני "·" (כפתורים עם מחיר: "בסיס · 1,250 ₪").
+      const titleLabel = labelBeforeDot(title);
+      if (tLabel && titleLabel && tLabel === titleLabel) return id;
     }
-    // buttonId עם מספר משובץ (btn_1 / option_1 / 1) -> מספר הבחירה.
-    const m = t.match(/(\d+)/);
-    if (m && opts.some((o) => String(o.id) === m[1])) return m[1];
+    // מזהה כפתור טכני בלבד (btn_1 / option_1 / 1) — לא להפעיל על טקסט עם מילים/מחיר.
+    const compact = t.replace(/\s+/g, '');
+    if (/^[a-zA-Z_]*\d+$/.test(compact)) {
+      const m = compact.match(/(\d+)/);
+      if (m && opts.some((o) => String(o.id) === m[1])) return m[1];
+    }
     return text;
   }
 
