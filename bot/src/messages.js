@@ -98,7 +98,7 @@ const messages = {
           : `${i + 1} · ${s.dateLabel}, בשעה ${s.startLabel}–${s.endLabel}`
       )
       .join('\n');
-    const text = 'מצוין. הנה המועדים הפנויים הקרובים:\n' + body;
+    const text = 'אלו המועדים הפנויים הקרובים:\n' + body;
     const options = slots.map((s, i) => ({
       id: String(i + 1),
       title: shortSlotLabel(s),

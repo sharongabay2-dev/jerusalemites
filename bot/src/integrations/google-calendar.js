@@ -133,20 +133,18 @@ class GoogleCalendar {
     return byDay;
   }
 
-  async proposeStudioSlots(tierId, { limit = 4, horizonDays = 30 } = {}) {
+  async proposeStudioSlots(tierId, { limit = 6, horizonDays = 14 } = {}) {
     const byDay = await this._busyByDay(horizonDays);
     const today = new Date();
     const now = nowInTz(this.timeZone); // סינון חלונות שכבר עברו
     const out = [];
     for (let i = 0; i < horizonDays && out.length < limit; i++) {
       const day = addDays(today, i);
-      if (!isWorkingDay(day)) continue;
+      if (!isWorkingDay(day)) continue; // ראשון–חמישי בלבד
       const busy = byDay[toDateKey(day)] || [];
-      for (const s of studioSlotsForDay(day, tierId, busy)) {
-        if (!isFutureSlot(s, 30, now)) continue; // רק חלונות עתידיים (now + 30 דק')
-        out.push(s);
-        if (out.length >= limit) break;
-      }
+      // משבצת אחת ליום (העתידית הראשונה) — פיזור על פני ימים שונים.
+      const first = studioSlotsForDay(day, tierId, busy).find((s) => isFutureSlot(s, 30, now));
+      if (first) out.push(first);
     }
     return out;
   }

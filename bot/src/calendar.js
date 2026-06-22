@@ -55,15 +55,14 @@ class MockCalendar {
     );
   }
 
-  async proposeStudioSlots(tierId, { limit = 4, horizonDays = 30 } = {}) {
+  async proposeStudioSlots(tierId, { limit = 6, horizonDays = 14 } = {}) {
     const out = [];
     for (let i = 0; i < horizonDays && out.length < limit; i++) {
       const day = addDays(this.baseDate, i);
       if (!isWorkingDay(day)) continue;
-      for (const s of studioSlotsForDay(day, tierId, this._busyFor(day))) {
-        out.push(s);
-        if (out.length >= limit) break;
-      }
+      // משבצת אחת ליום — פיזור על פני ימים שונים.
+      const daySlots = studioSlotsForDay(day, tierId, this._busyFor(day));
+      if (daySlots.length) out.push(daySlots[0]);
     }
     return out;
   }
